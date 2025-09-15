@@ -1,0 +1,430 @@
+using Godot;
+using System;
+using System.Collections.Generic;
+public partial class Player : CharacterBody2D
+{
+
+	// current equipped node
+	private Node2D _equippedNode;
+	private string _equippedItemId;
+	
+	// vars
+	public int Speed = 75;
+	public int BaseSpeed = 75;
+	public int RunSpeed = 150;
+	public double Health = 1000;
+	public double Stamina = 100;
+	public float JumpPower = 200;
+	
+	public float height = -5f;
+	public float verticalVelocity = 0f;
+	public float gravity = 750f; 
+	
+	public bool isRunning = false;
+	public bool isJumping = false;
+	
+	private Vector2 _inputDirection = Vector2.Zero;
+	
+	private String _direction = "Down";
+	
+	public bool PlayerAlive = true;
+	private bool _attackInProgress = false;
+	public bool Enemy_in_range = false;
+	public bool Enemy_attack_cooldown = true;
+	public bool Can_take_dmg = true;
+	public bool IsTakingDmg = false;
+	
+	// timers
+	private Timer _attack_cooldown;
+	private Timer _deal_attack_timer;
+	private Timer _take_damage_cooldown;
+	private Timer _regen_timer;
+	private Timer _regen_stamina_timer;
+	
+	// healthbar
+	private ProgressBar _healthBar;
+	// stamina
+	private ProgressBar _staminaBar;
+	
+	// sprite/node/anim
+	private AnimationPlayer _animationPlayer;
+	private Node2D _weaponPivot;
+	private Sprite2D _playerSprite;
+	
+	public Vector2 basePosition;
+	
+	// facing direction for mining
+	public Vector2I FacingDirection {get; private set;} = Vector2I.Down;
+	// FacingDirection = new Vector2I(Mathf.Sign(input.X), Mathf.Sign(input.Y));
+	// Inventory
+	public Inventory Inventory { get; private set; }
+	
+	// cam
+	private Camera2D _camera;
+	private bool _isUnderground = false;
+	
+	public override void _Ready() {
+		ItemDatabase.LoadAllItems();
+		
+		// initialize the world maanger to give it tile map
+		if (!WorldManager.IsInitialized)
+		{
+			var groundTilemap = GetParent().GetNode<TileMapLayer>("ground");
+			var crackedTilemap = GetParent().GetNode<TileMapLayer>("tile_crack");
+			var f = GetParent().GetNode<TileMapLayer>("flowers");
+			var m = GetParent().GetNode<TileMapLayer>("mountains");
+			var o = GetParent().GetNode<TileMapLayer>("objects");
+			
+			var baseUnderground = GetParent().GetNode<TileMapLayer>("base_underground");
+			var oreUnderground = GetParent().GetNode<TileMapLayer>("ore_underground");
+			WorldManager.Initialize(groundTilemap, crackedTilemap, f, m, o, baseUnderground, oreUnderground);
+		}
+
+		
+		Inventory = GetNode<Inventory>("Inventory");
+		_animationPlayer = GetNode<AnimationPlayer>("Sprites/PlayerAnimation");
+		_playerSprite = GetNode<Sprite2D>("Sprites/BodySprite");
+		_weaponPivot = GetNode<Node2D>("Sprites/WeaponPivot");
+		_attack_cooldown = GetNode<Timer>("attack_cooldown");
+		_deal_attack_timer = GetNode<Timer>("deal_attack_timer");
+		_take_damage_cooldown = GetNode<Timer>("take_damage_cooldown");
+		_healthBar = GetNode<ProgressBar>("healthbar");
+		_staminaBar = GetNode<ProgressBar>("staminabar");
+		_regen_timer = GetNode<Timer>("regen_timer");
+		_regen_stamina_timer = GetNode<Timer>("regen_stamina_timer");
+		
+		_camera = GetNode<Camera2D>("world_camera");
+		
+		_regen_timer.Start();
+		_healthBar.MaxValue = Health;
+		_healthBar.Value = Health;
+		_staminaBar.MaxValue = Stamina;
+		_staminaBar.Value = Stamina;
+		
+		PlayIdleAnimation();
+	}
+	
+	public override void _PhysicsProcess(double delta) {
+		HandleUndergroundCheck();
+		HandleInput();
+		HandleJump();
+		HandleStamina(delta);
+   		if (_isUnderground) {
+			// Underground: PLATFORMER MOVEMENT
+			if (!IsOnFloor()) {
+				Velocity += GetGravity() * (float)delta;
+			}
+			Velocity = new Vector2(_inputDirection.Normalized().X * Speed, Velocity.Y);
+   		} 
+		else {
+		// Surface: TOP DOWN MOVEMENT
+		HandleSurfaceJump((float)delta);
+		Velocity = _inputDirection.Normalized() * Speed;
+		}
+		MoveAndSlide();
+	}
+	
+	public void SetUndergroundMode(bool isUnderground) {
+		_isUnderground = isUnderground;
+	
+		if (_isUnderground) {
+		// Underground: side-scrolling collision layer
+		CollisionMask = 2; // Underground tiles collision layer
+		
+		// Adjust camera for side-scrolling view
+		// _camera.Zoom = new Vector2(3.0f, 3.0f); // Closer zoom
+		// _camera.Offset = new Vector2(0, -50); // Show more ground below player
+		
+		GD.Print("Player switched to underground mode");
+		}
+		else {
+		// Surface: top-down collision layer  
+		CollisionMask = 1; // Surface tiles collision layer
+		
+		// Adjust camera for top-down view
+		_camera.Zoom = new Vector2(2.0f, 2.0f); // Normal zoom
+		_camera.Offset = Vector2.Zero; // Center on player
+		
+		GD.Print("Player switched to surface mode");
+		}
+	}
+	
+	private void CheckForEntrances() {
+		if (WorldManager.IsUnderground) return;
+		Vector2I currentTile = WorldManager.WorldToTilePos(GlobalPosition);
+		GD.Print($"Current Tile Surface: {currentTile}");
+		var ent = WorldManager.HasEntranceAt(currentTile);
+		GD.Print($"Entrance: {ent}");
+		if (ent)
+		{
+			WorldManager.SurfaceToUnderground(currentTile, this);
+		}
+	}
+	
+	private void CheckForExits() {
+		if (!WorldManager.IsUnderground) return; 
+		Vector2I currentTile = WorldManager.WorldToTilePos(GlobalPosition);
+		GD.Print($"Current Tile Underground: {currentTile}");
+		var ex = WorldManager.HasExitAt(currentTile);
+		GD.Print($"Exit: {ex}");
+		if (ex) {
+			WorldManager.UndergroundToSurface(currentTile, this);
+	}
+	}
+	
+	private void HandleUndergroundCheck() {
+		if (Input.IsActionJustPressed("Interact")) {
+			if(WorldManager.IsUnderground) {
+				GD.Print("underground");
+				CheckForExits();
+			}
+			else {
+				GD.Print("surface");
+				CheckForEntrances();
+			}
+		}
+	}
+	
+	private void HandleInput()
+	{
+		_inputDirection = Vector2.Zero;
+		isRunning = Input.IsActionPressed("run") && Stamina > 0; ;
+		Speed = isRunning ? RunSpeed : BaseSpeed;
+
+		if (Input.IsActionPressed("ui_right"))
+		{
+			_inputDirection.X += 1;
+			FacingDirection = Vector2I.Right;
+			_direction = "Side";
+			_playerSprite.FlipH = false;
+		}
+		else if (Input.IsActionPressed("ui_left"))
+		{
+			_inputDirection.X -= 1;
+			FacingDirection = Vector2I.Left;
+			_direction = "Side";
+			_playerSprite.FlipH = true;
+		}
+		if (Input.IsActionPressed("ui_down"))
+		{
+			_inputDirection.Y += 1;
+			FacingDirection = Vector2I.Down;
+			_direction = "Down";
+			_playerSprite.FlipH = false;
+		}
+		else if (Input.IsActionPressed("ui_up"))
+		{
+			_inputDirection.Y -= 1;
+			FacingDirection = Vector2I.Up;
+			_direction = "Up";
+			_playerSprite.FlipH = false;
+		}
+
+		if (_attackInProgress)
+		{
+			return;
+		}
+		if (_inputDirection != Vector2.Zero)
+		{
+			if (isRunning)
+			{
+				PlayRunAnimation();
+			}
+			else
+			{
+				PlayWalkAnimation();
+			}
+		}
+		else
+		{
+			PlayIdleAnimation();
+		}
+
+		// "attack" basically prime Use of item (e)
+		if (Input.IsActionJustPressed("PrimaryAction") && !_attackInProgress && !isRunning && _equippedNode is IUsable usable)
+		{
+			_attackInProgress = true;
+			usable.Use(this);
+		}
+
+		// weapon switching
+	}
+	
+	private void HandleStamina(double delta) {
+	// drain stamina if running and moving
+	if (isRunning && _inputDirection != Vector2.Zero && Stamina > 0) {
+		Stamina -= 30 * delta; 
+		Stamina = Math.Max(Stamina, 0);
+		_staminaBar.Value = Stamina;
+
+		// stop regen while draining
+		if (!_regen_stamina_timer.IsStopped())
+			_regen_stamina_timer.Stop();
+	}
+	// start regen only when not running and stamina isn't full
+	else if (!isRunning && Stamina < _staminaBar.MaxValue && _regen_stamina_timer.IsStopped()) {
+		_regen_stamina_timer.Start();
+		}
+	}
+	
+	private void HandleJump() {
+		if (Input.IsActionJustPressed("jump") && IsOnFloor()) {
+			StartJump();
+		}
+	}
+	
+	private void HandleSurfaceJump(float delta) {
+		if (Input.IsActionJustPressed("jump") && !isJumping) {
+		verticalVelocity = JumpPower;
+		isJumping = true;
+		basePosition = Position;
+		}
+
+		if (isJumping) {
+			verticalVelocity -= gravity * delta;
+			height += verticalVelocity * delta;
+
+			if (height <= 0f) {
+				height = 0f;
+				verticalVelocity = 0f;
+				isJumping = false;
+			}
+
+			Position = basePosition + new Vector2(0, -height);
+		}
+	}
+	
+	private void StartJump() {
+		isJumping = true;
+		Velocity = new Vector2(Velocity.X, -JumpPower);
+		PlayRunAnimation();
+	}
+
+	public bool GetFacingLeft() {
+		return _playerSprite.FlipH;
+	}
+	
+	// duration change later?
+	public void PlayerAnimation(string actionName, float duration = 0.4f) {
+		string dir = _direction;
+		if(_direction == "Side" && _playerSprite.FlipH) {
+			dir = "LeftSide";
+		}
+		
+		string animationName = $"{dir}{actionName}";
+		_animationPlayer.Play(animationName);
+		if (_equippedNode != null) {
+			
+			var swordSprite = _equippedNode.GetNodeOrNull<Sprite2D>("WeaponSprite");
+			if (swordSprite != null) {
+				swordSprite.FlipV = (animationName == "LeftSidePierce");
+		}
+	}
+		GetTree().CreateTimer(duration).Timeout += () => { 
+			_attackInProgress = false; 
+			if (_equippedNode != null) {
+				var swordSprite = _equippedNode.GetNodeOrNull<Sprite2D>("WeaponSprite");
+				if (swordSprite != null) {
+					swordSprite.FlipV = false;
+			}
+		}
+		};
+	}
+	
+	// add bool, when false starts cooldown (invulnerability period for player)
+	// llava, mob spamming where players needs time between next damage taken
+	// default, player can be hit multiple times no cooldown
+	public void Take_damage(int dmg, bool force = false) {
+		if((Can_take_dmg && !IsTakingDmg && PlayerAlive) || force) {
+			Health -= dmg;
+			Health = Math.Max(Health, 0);
+			
+			_healthBar.Value = Health;
+			
+			GD.Print("Player health: ", Health);
+			
+			if(!force) {
+				Can_take_dmg = false;
+				IsTakingDmg = true;
+				_take_damage_cooldown.Start();	
+			}
+			
+			if(Health <= 0) {
+				PlayerAlive = false;
+				IsTakingDmg = false;
+				QueueFree();
+			}
+		}
+	}
+	// attack IP check
+	private void _on_deal_attack_timer_timeout() {
+		_deal_attack_timer.Start();
+		_attackInProgress = false;
+	}
+	
+	// taking dmg check
+	private void _on_take_damage_cooldown_timeout() {
+		Can_take_dmg = true;
+		IsTakingDmg = false;
+	}
+	
+	// health regen
+	private void _on_regen_timer_timeout() {
+		if (!PlayerAlive) return;
+		
+		double regen = 5;
+		Health = Math.Min(Health + regen, _healthBar.MaxValue);
+		_healthBar.Value = Health;
+	}
+	
+	// stamina regen
+	private void _on_regen_stamina_timer_timeout() {
+		if (!PlayerAlive) return;
+		
+		double regen = 5;
+		Stamina = Math.Min(Stamina+ regen, _staminaBar.MaxValue);
+		_staminaBar.Value = Stamina;
+	}
+	
+	public void EquipFromHotbar(BaseItem item) {
+		GD.Print(item.DisplayName);
+		GD.Print(item.Type);
+		if (item == null || _equippedItemId == item.ItemId) {
+			return;
+		}
+		
+		_equippedNode = EquipmentManager.EquipItem(item, _weaponPivot, this, _equippedNode);
+		if (_equippedNode == null) {
+			GD.PrintErr("Failed to equip item.");
+			return;
+		}
+		_equippedItemId = item.ItemId;	
+	}
+	
+	public void UnequipWeapon() {
+		EquipmentManager.UnequipItem(_equippedNode);
+		_equippedNode = null;
+		_equippedItemId = "";
+	}	
+	
+	private void PlayWalkAnimation() {
+		if(_equippedNode != null) {
+			_equippedNode.Show();
+		}
+		_animationPlayer.Play($"{_direction}Walk");
+	}
+	
+	private void PlayRunAnimation() {
+		if(_equippedNode != null) {
+			_equippedNode.Hide();
+		}
+		_animationPlayer.Play($"{_direction}Run");
+	}
+	
+	private void PlayIdleAnimation() {
+		if(_equippedNode != null) {
+			_equippedNode.Show();
+		}
+		_animationPlayer.Play($"{_direction}Idle");
+	}
+}
