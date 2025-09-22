@@ -69,7 +69,8 @@ public bool PlaceItem(int x, int y, string itemId, string key, int amount = 1, s
 			{
 				GD.Print("Source is inventory");
 				// Remove from inventory
-				entry = _inventory.GetEntry(key);
+				(int a, int b) = _inventory.FindItemByKey(key);
+				entry = _inventory.GetItemAt(a, b);
 				if (entry == null)
 				{
 					GD.PrintErr($"Item with key {key} not found in inventory");

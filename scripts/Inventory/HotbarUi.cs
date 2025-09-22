@@ -15,7 +15,7 @@ public partial class HotbarUi : Control
 		{
 			_slots[i] = grid.GetChild(i) as InventoryUiSlot;
 			if (_slots[i] != null)
-			{
+			{	_slots[i].InventorySlotIndex = i+16;
 				// Mark this slot as a hotbar slot
 				_slots[i].IsHotbarSlot = true;
 			}

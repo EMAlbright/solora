@@ -13,9 +13,14 @@ public partial class Inventory_UI : Control
 		
 		var grid = GetNode<GridContainer>("NinePatchRect/SlotsGrid");
 		_slots = new InventoryUiSlot[grid.GetChildCount()];
-		for(int i = 0; i < grid.GetChildCount(); i++) {
+		for (int i = 0; i < grid.GetChildCount(); i++)
+		{
 			GD.Print("Looping (inventory)");
 			_slots[i] = grid.GetChild(i) as InventoryUiSlot;
+			if (_slots[i] != null)
+			{
+				_slots[i].InventorySlotIndex = i;
+			}
 		}
 		
 		// get inventory node
@@ -35,19 +40,31 @@ public partial class Inventory_UI : Control
 			Visible = !Visible;
 		}
 	}
-	
-	public void Update() {
+
+	public void Update()
+	{
 		int slotIndex = 0;
-		foreach(var entry in _playerInventory.GetAllItems()) {
-			if (slotIndex >= _slots.Length) break;
-			
-			_slots[slotIndex].SetItem(entry);
-			slotIndex++;
-		}
-		
-		// clear any empty lsots
-		for(; slotIndex < _slots.Length; slotIndex++) {
-			_slots[slotIndex].Clear();
+		var invGrid = _playerInventory.GetInventoryGrid();
+
+		for(int i = 0; i < invGrid.GetLength(1); i++){
+			for(int j = 0; j < invGrid.GetLength(0); j++){
+				// if slot reachable
+				if(slotIndex < _slots.Length){
+
+					var entry = invGrid[j,i];
+					// set new item to null (empty) slot
+					if(entry != null){
+						_slots[slotIndex].SetItem(entry);
+					}
+					//TODO: CURRENTLY IF YOU PLACE ITEM IN SLOT OCCUPIED
+					//THEN ITEM IS JUST CLEARED (not from inv, but visually)
+					//This should probably just have nothing happen
+					else {
+						_slots[slotIndex].Clear();
+					}
+				}
+				slotIndex++;
+			}
 		}
 	}
 }

@@ -95,7 +95,8 @@ public partial class CraftingUiSlot : Panel
 		}
 		else
 		{
-			entry = _playerInventory.GetEntry(key);
+			(int a, int b)= _playerInventory.FindItemByKey(key);
+			entry = _playerInventory.GetItemAt(a, b);
 		}
 
 		if (entry == null)
@@ -110,7 +111,7 @@ public partial class CraftingUiSlot : Panel
 		GD.Print("entry: " + entry.Item.ItemId);
 
 		// find way to replace item already in crafting back to inv
-		if(_pc.PlaceItem(SlotIndex % 2, SlotIndex / 2, itemId, key, qty, source)) {
+		if(_pc.PlaceItem(x, y, itemId, key, qty, source)) {
 			var newCraftingEntry = new CraftingEntry(entry.Item, qty, key);
 			newCraftingEntry.Source = source;
 			SetItem(newCraftingEntry);
