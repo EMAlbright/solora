@@ -19,6 +19,7 @@ public static class WorldManager
 	private static TileMapLayer _groundTilemap; 
 	private static TileMapLayer _crackedTilemap;
 	private static TileMapLayer _flowers;
+	private static Node2D _placeables;
 	private static TileMapLayer _mountains; 
 	private static TileMapLayer _objects;
 	
@@ -28,11 +29,12 @@ public static class WorldManager
 	private static HashSet<Vector2I> _exits = new();
 	public static bool _isUnderground = false;
 	
-	public static void Initialize(TileMapLayer ground, TileMapLayer cracks, TileMapLayer f, TileMapLayer m, TileMapLayer o, TileMapLayer bU, TileMapLayer oU)
+	public static void Initialize(TileMapLayer ground, TileMapLayer cracks, TileMapLayer f, TileMapLayer m, TileMapLayer o, TileMapLayer bU, TileMapLayer oU, Node2D p)
 	{
 		_groundTilemap = ground;
 		_crackedTilemap = cracks;
 		_flowers = f;
+		_placeables = p;
 		_mountains = m;
 		_objects = o;
 		_baseUnderground = bU;
@@ -50,7 +52,19 @@ public static class WorldManager
 	// access to mining, return instance of mining manager depending on underground or surface
 	public static MiningManager Mining => _isUnderground ? _undergroundMiningManager : _surfaceMiningManager;
 
-
+	public static void PlaceBlock(Vector2I tilePos, MaterialItem mat){
+		var scene = GD.Load<PackedScene>("res://scenes/placeable_block.tscn");
+		var block = scene.Instantiate<MaterialBase>();
+		
+		block.MatData = mat;
+		var sprite = block.GetNode<Sprite2D>("Sprite2D");
+		sprite.Texture = mat.Icon;
+		int tileSize = 16; 
+		block.Position = new Vector2(tilePos.X * tileSize, tilePos.Y * tileSize);
+		
+		_placeables.AddChild(block);
+	}
+	
 	// access to tile map ops
 	public static Vector2I WorldToTilePos(Vector2 worldPos)
 	{

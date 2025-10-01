@@ -65,6 +65,7 @@ public partial class Player : CharacterBody2D
 	
 	public override void _Ready() {
 		ItemDatabase.LoadAllItems();
+		CraftingDatabase.LoadRecipes();
 		
 		// initialize the world maanger to give it tile map
 		if (!WorldManager.IsInitialized)
@@ -72,12 +73,12 @@ public partial class Player : CharacterBody2D
 			var groundTilemap = GetParent().GetNode<TileMapLayer>("ground");
 			var crackedTilemap = GetParent().GetNode<TileMapLayer>("tile_crack");
 			var f = GetParent().GetNode<TileMapLayer>("flowers");
+			var p = GetParent().GetNode<Node2D>("placeables");
 			var m = GetParent().GetNode<TileMapLayer>("mountains");
 			var o = GetParent().GetNode<TileMapLayer>("objects");
-			
 			var baseUnderground = GetParent().GetNode<TileMapLayer>("base_underground");
 			var oreUnderground = GetParent().GetNode<TileMapLayer>("ore_underground");
-			WorldManager.Initialize(groundTilemap, crackedTilemap, f, m, o, baseUnderground, oreUnderground);
+			WorldManager.Initialize(groundTilemap, crackedTilemap, f, m, o, baseUnderground, oreUnderground, p);
 		}
 
 		
@@ -305,7 +306,7 @@ public partial class Player : CharacterBody2D
 	}
 	
 	// duration change later?
-	public void PlayerAnimation(string actionName, float duration = 0.4f) {
+	public void PlayerAnimation(string actionName, float duration = 0.45f) {
 		string dir = _direction;
 		if(_direction == "Side" && _playerSprite.FlipH) {
 			dir = "LeftSide";

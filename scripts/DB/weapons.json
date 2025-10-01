@@ -78,7 +78,7 @@
 		"ItemId": "dirt_block",
 		"DisplayName": "Dirt Block.",
 		"Description": "A dirt block.",
-		"Icon": "res://art/GAMEART/environment/dirt.png",
+		"Icon": "res://art/GAMEART/environment/dirt_block.png",
 		"Type": "Mat",
 		"WorldScale": 1,
 		"MaxStackSize": 99,

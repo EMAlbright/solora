@@ -7,6 +7,8 @@ public partial class Crafting : Node
 	private Crafting _crafting;
 	private Inventory _inventory;
 	private Hotbar _hotbar;
+	private CraftingEntry craftableItem;
+	private ResultUiSlot resultSlot;
 
 	private CraftingEntry[,] _grid = new CraftingEntry[2,2];
 	
@@ -17,6 +19,8 @@ public partial class Crafting : Node
 		// get inventory/hotbar node
 		_inventory = GetParent().GetNode<Inventory>("Inventory");
 		_hotbar = GetParent().GetNode<Hotbar>("Hotbar");
+		
+		resultSlot = GetParent().GetNode<Panel>("result_ui_slot") as ResultUiSlot;
 	}
 	
 	public IEnumerable<CraftingEntry> GetAllItems() {
@@ -83,7 +87,13 @@ public bool PlaceItem(int x, int y, string itemId, string key, int amount = 1, s
 			// Put into crafting grid
 			_grid[x, y] = new CraftingEntry(entry.Item, amount, key);
 			_grid[x, y].Source = source;
-
+			GD.Print(amount);
+			// see if we can craft anything
+			if(TryCraft(amount)){
+				// we can craft something, call ResultUiSlot to display item that is craftable
+				GD.Print(craftableItem.Item.ItemId);
+				resultSlot.SetItem(craftableItem);
+			};
 			GD.Print($"Successfully placed {entry.Item.ItemId} in crafting grid at ({x}, {y})");
 
 			EmitSignal(SignalName.CraftingChange);
@@ -123,6 +133,17 @@ public bool PlaceItem(int x, int y, string itemId, string key, int amount = 1, s
 		_grid[x, y] = null;
 		EmitSignal(SignalName.CraftingChange);
 	}
+	
+	public void RemoveAllCraftingItems(){
+		for (int x = 0; x < 2; x++)
+		{
+			for (int y = 0; y < 2; y++)
+			{
+				_grid[x, y] = null;
+			}
+		}
+		EmitSignal(SignalName.CraftingChange);
+	}
 
 	// Clear grid (return items back to inventory)
 	public void ClearGrid()
@@ -138,10 +159,37 @@ public bool PlaceItem(int x, int y, string itemId, string key, int amount = 1, s
 	}
 
 	// This will eventually check recipe patterns
-	public BaseItem TryCraft()
+	public bool TryCraft(int newAmount)
 	{
 	// compare `_grid` against known recipe layouts.
-		GD.Print("Checking recipe...");
-		return null;
+	// "itemId": quantity
+		//TODO: Maybe dont create a dict everytime func is called;; 
+		Dictionary<string, int> currItems = new Dictionary<string, int>();
+		for (int x = 0; x < _grid.GetLength(0); x++) {
+			for (int y = 0; y < _grid.GetLength(1); y++) {
+				if (_grid[x, y] != null) {
+					if(currItems.ContainsKey(_grid[x,y].Item.ItemId)){
+						currItems[_grid[x,y].Item.ItemId] += newAmount;
+					}
+					else{
+						currItems.Add(_grid[x,y].Item.ItemId, _grid[x,y].Quantity);
+					}
+					GD.Print($"Added {_grid[x,y].Item.ItemId} to crafting list");
+				}
+			}
+		}
+		Recipe itemCreated = CraftingDatabase.FindMatch(currItems);
+		if(itemCreated == null){
+			GD.Print("Null item match returned");
+			return false;
+		}
+		int quantity = itemCreated.Output.Count;
+		BaseItem item = ItemDatabase.GetItem(itemCreated.Output.ItemId);
+		string key = item.IsStackable ? item.ItemId : $"{item.ItemId}_{Guid.NewGuid()}";
+		
+		craftableItem = new CraftingEntry(item, quantity, key);
+		
+		// load recipes when trying to craft only?
+		return true;
 	}
 }

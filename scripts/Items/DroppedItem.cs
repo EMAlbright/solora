@@ -26,7 +26,7 @@ public partial class DroppedItem : RigidBody2D
 			CollisionMask = 1;
 			GravityScale = 0;
 			if (zHeight <= 0) {
-				DropItemFromHeight(10f, 0f); 
+				DropItemFromHeight(40f, 0f); 
 		}	
 		
 	}
@@ -34,7 +34,7 @@ public partial class DroppedItem : RigidBody2D
 	
 	public override void _PhysicsProcess(double delta) {
 		if (zHeight > 0) {
-		zVelocity -= 5f * (float)delta; 
+		zVelocity -= 40f * (float)delta; 
 		zHeight += zVelocity * (float)delta;
 			if (zHeight <= 0) {
 				zHeight = 0;

@@ -118,7 +118,7 @@ public partial class CraftingUiSlot : Panel
 		};
 	}
 
-	// data sent to inventory slot
+	// data sent to inventory (or other) slot
 	public override Variant _GetDragData(Vector2 atPosition)
 	{
 		if (StoredCraftEntry == null) return new Variant();

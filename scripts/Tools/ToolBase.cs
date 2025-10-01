@@ -27,6 +27,7 @@ public partial class ToolBase : Node2D, IEquippable, IUsable
 		};
 	}
 	
+	
 	public void OnEquip(Player player, BaseItem item) {
 		_player = player;
 		ToolData = item as ToolItem;

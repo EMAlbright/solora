@@ -1,10 +1,10 @@
 [
   {
-	"id": "dirt_block",
-	"inputs": [
-	  { "ItemId": "dirt", "count": 4 },
+	"Id": "dirt_block",
+	"Inputs": [
+	  { "ItemId": "dirt", "Count": 4 }
 	],
-	"output": { "ItemId": "dirt_block", "count": 2 },
-	"shaped": false
+	"Output": { "ItemId": "dirt_block", "Count": 2 },
+	"Shaped": false
   }
 ]

@@ -12,6 +12,7 @@ public partial class InventoryUiSlot : Panel
 	private Inventory _pi;
 	private Crafting _pc;
 	private Hotbar _ph;
+	private ResultUiSlot _pr;
 
 	// Add this to track if this slot is from hotbar
 	public bool IsHotbarSlot { get; set; } = false;
@@ -28,6 +29,7 @@ public partial class InventoryUiSlot : Panel
 		_pi = world.GetNode<Inventory>("Player/Inventory");
 		_pc = world.GetNode<Crafting>("Player/Crafting");
 		_ph = world.GetNode<Hotbar>("Player/Hotbar");
+		_pr = world.GetNode<ResultUiSlot>("Player/result_ui_slot");
 
 		_quantityLabel.Visible = false;
 		_itemDisplay.Visible = false;
@@ -86,6 +88,7 @@ public partial class InventoryUiSlot : Panel
 		var itemId = dict["item"].ToString();
 		var key = dict["key"].ToString();
 		var qty = (int)dict["quantity"];
+		GD.Print(qty);
 		var source = dict.ContainsKey("source") ? dict["source"].ToString() : "inventory";
 		// dont need source?
 		// var source = dict.ContainsKey("source") ? dict["source"].ToString() : "inventory";
@@ -98,6 +101,7 @@ public partial class InventoryUiSlot : Panel
 		int x = InventorySlotIndex % 4;
 		int y = InventorySlotIndex / 4;
 		// if get coords from crafting is false, then its coming either from the inventory or hotbar
+		// this is the crafting source check
 		if(_pc.GetCoords(key, out xPos, out yPos))
 		{
 			_pc.RemoveItem(xPos, yPos);
@@ -111,11 +115,14 @@ public partial class InventoryUiSlot : Panel
 			if(source == "inventory"){
 				_pi.RemoveItem(key);
 			}
+			if(source == "result"){
+				_pr.RemoveItem(key);
+			}
 			if (slot > 15 && slot < 20){
-				_ph.AddItem(newInvEntry);
+				_ph.AddItem(newInvEntry, qty);
 			}
 			// remove from inventory and place in dropped spot?
-			_pi.AddItemToPosition(newInvEntry, x, y);
+			_pi.AddItemToPosition(newInvEntry, x, y, qty);
 		}
 	}
 
