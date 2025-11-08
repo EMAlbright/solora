@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 public partial class Hotbar : Node
 {
+	private Player _player;
 	private const int MaxSlots = 4;
 	
 	private InventoryEntry[] _slots = new InventoryEntry[MaxSlots];
@@ -117,7 +118,9 @@ public partial class Hotbar : Node
 		{
 			if (_slots[i] != null && _slots[i].Key == key)
 			{
+				GD.Print("Removing in hotbar");
 				_slots[i].Quantity -= amount;
+				GD.Print("After removing " + _slots[i].Quantity);
 				if (_slots[i].Quantity <= 0)
 				{
 					_slots[i] = null;
@@ -157,6 +160,7 @@ public partial class Hotbar : Node
 	{
 		// get player
 		var player = GetParent() as Player;
+		_player = player;
 		if (player == null)
 		{
 			GD.Print("In hotbar, parent null");
@@ -170,11 +174,12 @@ public partial class Hotbar : Node
 			return;
 		}
 		
-		var item = _slots[slotIndex].Item;
+		var item = _slots[slotIndex];
+
 		// for now, only handle weapons and tools
-		if(item.Type == ItemType.Weapon || item.Type == ItemType.Tool || item.Type == ItemType.Mat)
+		if(item.Item.Type == ItemType.Weapon || item.Item.Type == ItemType.Tool || item.Item.Type == ItemType.Mat)
 		{
-			GD.Print(item.Type);
+			GD.Print(item.Item.Type);
 			player.EquipFromHotbar(item);
 		}
 	}

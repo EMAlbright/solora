@@ -4,8 +4,8 @@ using System.Collections.Generic;
 
 public static class WorldManager
 {
-	private static MiningManager _surfaceMiningManager;
-	private static MiningManager _undergroundMiningManager;
+	public static MiningManager _surfaceMiningManager;
+	public static MiningManager _undergroundMiningManager;
 	
 	private static TileMapLayer[] _surfaceLayers;
 	private static TileMapLayer[] _undergroundLayers;
@@ -20,8 +20,14 @@ public static class WorldManager
 	private static TileMapLayer _crackedTilemap;
 	private static TileMapLayer _flowers;
 	private static Node2D _placeables;
-	private static TileMapLayer _mountains; 
+	private static TileMapLayer _mountains;
 	private static TileMapLayer _objects;
+
+	// mineable layers
+	private static MineableLayer _mGround;
+	private static MineableLayer _mOre;
+	private static MineableLayer _mUnderground;
+	private static MineableLayer _mMountains;
 	
 	// track entrances
 	private static HashSet<Vector2I> _entrances = new();
@@ -41,8 +47,14 @@ public static class WorldManager
 		_oreUnderground = oU;
 		_surfaceLayers = new TileMapLayer[] { _groundTilemap, _flowers, _mountains, _objects };
 		_undergroundLayers = new TileMapLayer[] { _baseUnderground, _oreUnderground };
-		_surfaceMiningManager = new MiningManager(_groundTilemap, _crackedTilemap);
-		_undergroundMiningManager = new MiningManager(_baseUnderground, _crackedTilemap, _oreUnderground);
+
+		_mMountains = new(_mountains, false, "tree/mountains");
+		_mGround = new(_groundTilemap, true, "base ground");
+		_mUnderground = new(_baseUnderground);
+		_mOre = new(_oreUnderground);
+
+		_surfaceMiningManager = new MiningManager(_crackedTilemap, _mMountains, _mGround);
+		_undergroundMiningManager = new MiningManager(_crackedTilemap, _mUnderground, _mOre);
 		
 		ShowSurface();
 		
@@ -52,13 +64,16 @@ public static class WorldManager
 	// access to mining, return instance of mining manager depending on underground or surface
 	public static MiningManager Mining => _isUnderground ? _undergroundMiningManager : _surfaceMiningManager;
 
-	public static void PlaceBlock(Vector2I tilePos, MaterialItem mat){
+	public static void PlaceBlock(Vector2I tilePos, MaterialItem mat, Player player){
 		var scene = GD.Load<PackedScene>("res://scenes/placeable_block.tscn");
 		var block = scene.Instantiate<MaterialBase>();
 		
-		block.MatData = mat;
+		// create copy, new reference of mat item
+		block.Init(mat, player);
+		
 		var sprite = block.GetNode<Sprite2D>("Sprite2D");
-		sprite.Texture = mat.Icon;
+		sprite.Texture = block.MatData.Icon;
+		
 		int tileSize = 16; 
 		block.Position = new Vector2(tilePos.X * tileSize, tilePos.Y * tileSize);
 		

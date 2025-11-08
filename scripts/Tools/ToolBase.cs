@@ -18,6 +18,7 @@ public partial class ToolBase : Node2D, IEquippable, IUsable
 		GD.Print("Override tool base animation");
 		_isUsingTool = true;
 		
+		
 		// get tile pos from game manager
 		Vector2I tilePos = WorldManager.WorldToTilePos(player.GlobalPosition);
 		WorldManager.Mining.MineTile(tilePos + player.FacingDirection, ToolData);
@@ -28,14 +29,14 @@ public partial class ToolBase : Node2D, IEquippable, IUsable
 	}
 	
 	
-	public void OnEquip(Player player, BaseItem item) {
+	public void OnEquip(Player player, InventoryEntry item) {
 		_player = player;
-		ToolData = item as ToolItem;
+		ToolData = item.Item as ToolItem;
 		Show();
 	}
 	
 	public void OnUnequip() {
-		GD.Print("Unequip");
+		Hide();
 	}
 	
 	// check if area the Tools hitbox (area2d) has entered is a mineable area

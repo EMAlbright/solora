@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 public abstract partial class BaseEnemy : CharacterBody2D
 {
@@ -44,6 +45,7 @@ public abstract partial class BaseEnemy : CharacterBody2D
 	}
 	
 	public override void _PhysicsProcess(double delta) {
+
 		if (!IsAttacking) {
 			if (Chase && Hero != null) {
 				Vector2 direction = (Hero.Position - Position).Normalized();
@@ -67,6 +69,28 @@ public abstract partial class BaseEnemy : CharacterBody2D
 			// No movement during attack
 			Velocity = Vector2.Zero;
 		}
+		
+		/**
+		if(Hero != null){
+			Vector2I start = NavigationManager.NavInstance.WorldToGrid(GlobalPosition);
+			Vector2I goal = NavigationManager.NavInstance.WorldToGrid(Hero.GlobalPosition);
+			Vector2 direction = (Hero.GlobalPosition - GlobalPosition).Normalized();
+			
+			List<Vector2I> path = NavigationManager.NavInstance.GetAstarPath(start, goal);
+			if(path.Count > 1){
+				Vector2 nextPos = NavigationManager.NavInstance.GridToWorld(path[1]);
+				Vector2 direction = (Hero.GlobalPosition - GlobalPosition).Normalized();
+				Velocity = (nextPos - GlobalPosition).Normalized() * Speed;
+				UpdateAnimation(direction, "Walk");
+				AvoidEnemyCollision();
+				MoveAndSlide();
+			}
+			else{
+				Velocity = Vector2.Zero;
+				UpdateAnimation(direction, "Idle");
+			}
+		}
+		**/
 		AvoidEnemyCollision();
 		MoveAndSlide();
 	}

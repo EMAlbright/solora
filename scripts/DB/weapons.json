@@ -80,6 +80,7 @@
 		"Description": "A dirt block.",
 		"Icon": "res://art/GAMEART/environment/dirt_block.png",
 		"Type": "Mat",
+		"Health": 25,
 		"WorldScale": 1,
 		"MaxStackSize": 99,
 	},

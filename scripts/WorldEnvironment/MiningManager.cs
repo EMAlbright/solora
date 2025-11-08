@@ -3,52 +3,58 @@ using System.Collections.Generic;
 
 public class MiningManager
 {
-	private TileMapLayer _groundLayer;
-	private TileMapLayer _oreLayer;
+	private MineableLayer _currLayer;
+	private MineableLayer _secondLayer;
 	private TileMapLayer _crackLayer;
-	private bool hasGround;
-	private bool hasOre;
-	private TileData groundTile;
-	private TileData oreTile;
 	
 	// tile data is static, need to store per instance changes somewhere
-	private Dictionary<Vector2I, float> _groundHealth = new();
-	private Dictionary<Vector2I, float> _oreHealth = new();
+	private List<MineableLayer> Layers = new();
 	
 	// MIGHT HAVE TO COMPLETELY SEPERATE UNDERGROUND AND SURFACE MANAGERS
 	// SURFACE ONLY PASSES IN GROUND AND CRACKS, UNDER PASSES IN ORE ADDITIONALLY
-	public MiningManager(TileMapLayer ground, TileMapLayer cracks, TileMapLayer ore = null) {
-		_groundLayer = ground;
-		_oreLayer = ore;
+	public MiningManager(TileMapLayer cracks, params MineableLayer[] minelayers)
+	{
+		// list of MineableLayers from top -> bottom
+		// mountains -> ground -> underground -> ore
+		Layers.AddRange(minelayers);
 		_crackLayer = cracks;
 	}
 	
 	public bool MineTile(Vector2I tilePos, ToolItem tool)
 	{
-		if (_oreLayer != null) {
-			oreTile = _oreLayer.GetCellTileData(tilePos);
-			hasOre = oreTile != null && GetCustomDataBool(oreTile, "mineable");
-		}
-		
-		if(_groundLayer != null) {
-			groundTile = _groundLayer.GetCellTileData(tilePos);
-			hasGround = groundTile != null && GetCustomDataBool(groundTile, "mineable");
-		}
-		
-		if (hasOre && hasGround) {
-			return MineTwoTile(tilePos, tool, oreTile, groundTile);
-		}
-		else if (hasOre) {
-			return MineSingleTile(tilePos, true, tool, oreTile, _oreLayer, _oreHealth);
-		}
-		
-		else if (hasGround) {
-			return MineSingleTile(tilePos, false, tool, groundTile, _groundLayer, _groundHealth);
-		}
+		for (int i = 0;  i < Layers.Count;  i++)
+		{
+			if (Layers[i].Tilemap == null)
+			{
+				continue;
+			}
+			GD.Print(Layers[i].name);
+			_currLayer = Layers[i];
 
+			TileData tile = Layers[i].Tilemap.GetCellTileData(tilePos);
+			TileData nextTile = null;
+
+			if(i < Layers.Count-1 && Layers[i+1].Tilemap != null)
+			{
+				_secondLayer = Layers[i+1];
+				nextTile = Layers[i+1].Tilemap.GetCellTileData(tilePos);
+			}
+			if (tile == null)
+			{
+				continue;
+			}
+			GD.Print(GetCustomDataString(tile, "name"));
+			if (WorldManager.IsUnderground && nextTile != null && GetCustomDataBool(tile, "mineable") && GetCustomDataBool(nextTile, "mineable"))
+			{
+				return MineTwoTile(tilePos, tool, nextTile, tile);
+			}
+			if (GetCustomDataBool(tile, "mineable"))
+			{
+				return MineSingleTile(tilePos, true, tool, tile, Layers[i].Tilemap, Layers[i].Health);
+			}
+		}
 		GD.Print("No mineable tile at ", tilePos);
 		return false;
-		
 	}
 	
 	private bool MineSingleTile(Vector2I tilePos, bool isOre, ToolItem tool, TileData tile, TileMapLayer layer, Dictionary<Vector2I, float> healthDict) {
@@ -83,30 +89,30 @@ public class MiningManager
 	float groundMaxHealth = GetCustomDataFloat(groundTile, "hardness");
 	
 	// Initialize health if not already tracked
-	if (!_oreHealth.ContainsKey(tilePos)) {
-		_oreHealth[tilePos] = oreMaxHealth;
+	if (!_secondLayer.Health.ContainsKey(tilePos)) {
+		_secondLayer.Health[tilePos] = oreMaxHealth;
 	}
-	if (!_groundHealth.ContainsKey(tilePos)) {
-		_groundHealth[tilePos] = groundMaxHealth;
+	if (!_currLayer.Health.ContainsKey(tilePos)) {
+		_currLayer.Health[tilePos] = groundMaxHealth;
 	}
 	
 	// Damage both tiles
-	_oreHealth[tilePos] -= tool.Damage;
-	_groundHealth[tilePos] -= tool.Damage;
+	_secondLayer.Health[tilePos] -= tool.Damage;
+	_currLayer.Health[tilePos] -= tool.Damage;
 	
-	float oreRemainingHealth = _oreHealth[tilePos];
-	float groundRemainingHealth = _groundHealth[tilePos];
+	float oreRemainingHealth = _secondLayer.Health[tilePos];
+	float groundRemainingHealth = _currLayer.Health[tilePos];
 	
 	// Check if both are destroyed
 	if (oreRemainingHealth <= 0 && groundRemainingHealth <= 0) {
 		// Remove both tiles
-		_oreLayer.SetCell(tilePos, -1);
-		_groundLayer.SetCell(tilePos, -1);
+		_secondLayer.Tilemap.SetCell(tilePos, -1);
+		_currLayer.Tilemap.SetCell(tilePos, -1);
 		_crackLayer?.SetCell(tilePos, -1);
 		
 		// Clean up health tracking
-		_oreHealth.Remove(tilePos);
-		_groundHealth.Remove(tilePos);
+		_secondLayer.Health.Remove(tilePos);
+		_currLayer.Health.Remove(tilePos);
 		
 		// Create entrance and spawn ore drop
 		WorldManager.AddEntrance(tilePos);
@@ -133,6 +139,7 @@ public class MiningManager
 	
 	private bool GetCustomDataBool(TileData tiledata, string name) {
 		Variant data = tiledata.GetCustomData(name);
+		GD.Print("hit tree");
 		return data.VariantType != Variant.Type.Nil ? data.AsBool() : false;
 	}
 
@@ -148,6 +155,7 @@ public class MiningManager
 		return data.VariantType != Variant.Type.Nil ? data.AsSingle() : 0.0f;
 	}
 	
+	
 	private void SpawnDroppedItem(Vector2I tilePos, TileData tiledata) {
 		var droppedItemScene = GD.Load<PackedScene>("res://scenes/dropped_item.tscn");
 		string itemId = GetCustomDataString(tiledata, "drop_item");
@@ -159,15 +167,30 @@ public class MiningManager
 		}
 		GD.Print(itemData.DisplayName);
 		instance.Init(itemData);
-		Vector2 worldPos = _groundLayer.MapToLocal(tilePos);		
+		Vector2 worldPos = _currLayer.Tilemap.MapToLocal(tilePos);		
 		instance.Position = worldPos;
 		instance.GravityScale = 1;
 		instance.zHeight = 0;
 		instance.zVelocity = 0;
 	
-	
-		_groundLayer.GetParent().AddChild(instance);
+		_currLayer.Tilemap.GetParent().AddChild(instance);
 		
+	}
+	
+	public void SpawnBaseDroppedItem(Vector2I tilePos, BaseItem item){
+		var droppedItemScene = GD.Load<PackedScene>("res://scenes/dropped_item.tscn");
+		var instance = droppedItemScene.Instantiate<DroppedItem>();
+		if (item == null) {
+			GD.Print("Item data null in mining manager");
+		}
+		instance.Init(item);
+		Vector2 worldPos = _currLayer.Tilemap.MapToLocal(tilePos);		
+		instance.Position = worldPos;
+		instance.GravityScale = 1;
+		instance.zHeight = 0;
+		instance.zVelocity = 0;
+	
+		_currLayer.Tilemap.GetParent().AddChild(instance);
 	}
 	
 }

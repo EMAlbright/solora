@@ -3,10 +3,12 @@ using System;
 using System.Collections.Generic;
 public partial class Player : CharacterBody2D
 {
+	//itlsef
+	public static Player PlayerInstance { get; private set; }
 
 	// current equipped node
-	private Node2D _equippedNode;
-	private string _equippedItemId;
+	public Node2D EquippedNode {get; private set;}
+	public string EquippedItemId {get; private set;}
 	
 	// vars
 	public int Speed = 75;
@@ -15,6 +17,9 @@ public partial class Player : CharacterBody2D
 	public double Health = 1000;
 	public double Stamina = 100;
 	public float JumpPower = 200;
+	
+	private float _attackHoldTime = 0f;
+	private float _heavyAttackThreshold = 0.5f;
 	
 	public float height = -5f;
 	public float verticalVelocity = 0f;
@@ -28,7 +33,7 @@ public partial class Player : CharacterBody2D
 	private String _direction = "Down";
 	
 	public bool PlayerAlive = true;
-	private bool _attackInProgress = false;
+	public bool _attackInProgress = false;
 	public bool Enemy_in_range = false;
 	public bool Enemy_attack_cooldown = true;
 	public bool Can_take_dmg = true;
@@ -61,12 +66,15 @@ public partial class Player : CharacterBody2D
 	
 	// cam
 	private Camera2D _camera;
-	private bool _isUnderground = false;
-	
-	public override void _Ready() {
+	public bool IsUnderground = false;
+
+	public override void _Ready()
+	{
 		ItemDatabase.LoadAllItems();
 		CraftingDatabase.LoadRecipes();
-		
+
+		PlayerInstance = this;
+
 		// initialize the world maanger to give it tile map
 		if (!WorldManager.IsInitialized)
 		{
@@ -81,7 +89,7 @@ public partial class Player : CharacterBody2D
 			WorldManager.Initialize(groundTilemap, crackedTilemap, f, m, o, baseUnderground, oreUnderground, p);
 		}
 
-		
+
 		Inventory = GetNode<Inventory>("Inventory");
 		_animationPlayer = GetNode<AnimationPlayer>("Sprites/PlayerAnimation");
 		_playerSprite = GetNode<Sprite2D>("Sprites/BodySprite");
@@ -93,42 +101,50 @@ public partial class Player : CharacterBody2D
 		_staminaBar = GetNode<ProgressBar>("staminabar");
 		_regen_timer = GetNode<Timer>("regen_timer");
 		_regen_stamina_timer = GetNode<Timer>("regen_stamina_timer");
-		
+
 		_camera = GetNode<Camera2D>("world_camera");
-		
+
 		_regen_timer.Start();
 		_healthBar.MaxValue = Health;
 		_healthBar.Value = Health;
 		_staminaBar.MaxValue = Stamina;
 		_staminaBar.Value = Stamina;
-		
+
 		PlayIdleAnimation();
 	}
-	
+
+	public override void _ExitTree()
+	{
+		if(PlayerInstance == this)
+		{
+			PlayerInstance = null;
+		}
+	}
+
 	public override void _PhysicsProcess(double delta) {
 		HandleUndergroundCheck();
 		HandleInput();
 		HandleJump();
 		HandleStamina(delta);
-   		if (_isUnderground) {
+   		if (IsUnderground) {
 			// Underground: PLATFORMER MOVEMENT
 			if (!IsOnFloor()) {
 				Velocity += GetGravity() * (float)delta;
 			}
-			Velocity = new Vector2(_inputDirection.Normalized().X * Speed, Velocity.Y);
+			Velocity = new Vector2(_inputDirection.X * Speed, Velocity.Y);
    		} 
 		else {
-		// Surface: TOP DOWN MOVEMENT
-		HandleSurfaceJump((float)delta);
-		Velocity = _inputDirection.Normalized() * Speed;
+			// Surface: TOP DOWN MOVEMENT
+			HandleSurfaceJump((float)delta);
+			Velocity = _inputDirection.Normalized() * Speed;
 		}
 		MoveAndSlide();
 	}
 	
 	public void SetUndergroundMode(bool isUnderground) {
-		_isUnderground = isUnderground;
+		IsUnderground = isUnderground;
 	
-		if (_isUnderground) {
+		if (IsUnderground) {
 		// Underground: side-scrolling collision layer
 		CollisionMask = 2; // Underground tiles collision layer
 		
@@ -240,9 +256,27 @@ public partial class Player : CharacterBody2D
 		{
 			PlayIdleAnimation();
 		}
+		
+		if (EquippedNode is IWeapon weapon && !_attackInProgress && !isRunning) {
+			if (Input.IsActionPressed("PrimaryAction")) {
+				_attackHoldTime += (float)GetPhysicsProcessDeltaTime();
+			}
+
+			if (Input.IsActionJustReleased("PrimaryAction")) {
+				_attackInProgress = true;
+
+				if (_attackHoldTime >= _heavyAttackThreshold) {
+					weapon.HeavyAttack(this);
+				} else {
+		   	 		weapon.LightAttack(this);
+	   			}
+				_attackHoldTime = 0f;
+			}
+		}
 
 		// "attack" basically prime Use of item (e)
-		if (Input.IsActionJustPressed("PrimaryAction") && !_attackInProgress && !isRunning && _equippedNode is IUsable usable)
+		// the above handles weapons, this handles tools/placeables?
+		if (Input.IsActionJustPressed("PrimaryAction") && !_attackInProgress && !isRunning && EquippedNode is IUsable usable)
 		{
 			_attackInProgress = true;
 			usable.Use(this);
@@ -276,9 +310,9 @@ public partial class Player : CharacterBody2D
 	
 	private void HandleSurfaceJump(float delta) {
 		if (Input.IsActionJustPressed("jump") && !isJumping) {
-		verticalVelocity = JumpPower;
-		isJumping = true;
-		basePosition = Position;
+			verticalVelocity = JumpPower;
+			isJumping = true;
+			basePosition = Position;
 		}
 
 		if (isJumping) {
@@ -314,17 +348,17 @@ public partial class Player : CharacterBody2D
 		
 		string animationName = $"{dir}{actionName}";
 		_animationPlayer.Play(animationName);
-		if (_equippedNode != null) {
+		if (EquippedNode != null) {
 			
-			var swordSprite = _equippedNode.GetNodeOrNull<Sprite2D>("WeaponSprite");
+			var swordSprite = EquippedNode.GetNodeOrNull<Sprite2D>("WeaponSprite");
 			if (swordSprite != null) {
 				swordSprite.FlipV = (animationName == "LeftSidePierce");
 		}
 	}
 		GetTree().CreateTimer(duration).Timeout += () => { 
 			_attackInProgress = false; 
-			if (_equippedNode != null) {
-				var swordSprite = _equippedNode.GetNodeOrNull<Sprite2D>("WeaponSprite");
+			if (EquippedNode != null) {
+				var swordSprite = EquippedNode.GetNodeOrNull<Sprite2D>("WeaponSprite");
 				if (swordSprite != null) {
 					swordSprite.FlipV = false;
 			}
@@ -387,44 +421,42 @@ public partial class Player : CharacterBody2D
 		_staminaBar.Value = Stamina;
 	}
 	
-	public void EquipFromHotbar(BaseItem item) {
-		GD.Print(item.DisplayName);
-		GD.Print(item.Type);
-		if (item == null || _equippedItemId == item.ItemId) {
+	public void EquipFromHotbar(InventoryEntry item) {
+		if (item == null || EquippedItemId == item.Item.ItemId) {
 			return;
 		}
 		
-		_equippedNode = EquipmentManager.EquipItem(item, _weaponPivot, this, _equippedNode);
-		if (_equippedNode == null) {
+		EquippedNode = EquipmentManager.EquipItem(item, _weaponPivot, this, EquippedNode);
+		if (EquippedNode == null) {
 			GD.PrintErr("Failed to equip item.");
 			return;
 		}
-		_equippedItemId = item.ItemId;	
+		EquippedItemId = item.Item.ItemId;	
 	}
 	
 	public void UnequipWeapon() {
-		EquipmentManager.UnequipItem(_equippedNode);
-		_equippedNode = null;
-		_equippedItemId = "";
+		EquipmentManager.UnequipItem(EquippedNode);
+		EquippedNode = null;
+		EquippedItemId = "";
 	}	
 	
 	private void PlayWalkAnimation() {
-		if(_equippedNode != null) {
-			_equippedNode.Show();
+		if(EquippedNode != null) {
+			EquippedNode.Show();
 		}
 		_animationPlayer.Play($"{_direction}Walk");
 	}
 	
 	private void PlayRunAnimation() {
-		if(_equippedNode != null) {
-			_equippedNode.Hide();
+		if(EquippedNode != null) {
+			EquippedNode.Hide();
 		}
 		_animationPlayer.Play($"{_direction}Run");
 	}
 	
 	private void PlayIdleAnimation() {
-		if(_equippedNode != null) {
-			_equippedNode.Show();
+		if(EquippedNode != null) {
+			EquippedNode.Show();
 		}
 		_animationPlayer.Play($"{_direction}Idle");
 	}

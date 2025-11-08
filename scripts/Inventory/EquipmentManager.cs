@@ -1,16 +1,15 @@
 using Godot;
 
 public static class EquipmentManager {
-	public static Node2D EquipItem(BaseItem item, Node2D pivot, Player player, Node2D currentEquipped = null) {
+	public static Node2D EquipItem(InventoryEntry item, Node2D pivot, Player player, Node2D currentEquipped = null) {
 		UnequipItem(currentEquipped);
 		
-		if(item == null || string.IsNullOrEmpty(item.ScenePath)) {
-			GD.PrintErr("Invalid item/scene path");
+		if(item == null) {
+			GD.Print("item null");
 		}
-		GD.Print($"Hotbar go this item type: {item.DisplayName} -- {item.Type}");
 
 		// if its a generic (only holdable) material, load holdable scene
-		if (item.Type == ItemType.Mat) {
+		if (item.Item.Type == ItemType.Mat) {
 			
 			// this can be for non placeable mats
 			//var matscene = GD.Load<PackedScene>("res://scenes/HoldableGeneric.tscn");
@@ -27,9 +26,9 @@ public static class EquipmentManager {
 			return matinstance;
 		}
 		
-		var scene = GD.Load<PackedScene>(item.ScenePath);
+		var scene = GD.Load<PackedScene>(item.Item.ScenePath);
 		if (scene == null) {
-			GD.PrintErr($"Scene not found at path: {item.ScenePath}");
+			GD.PrintErr($"Scene not found at path: {item.Item.ScenePath}");
 			return null;
 		}
 		

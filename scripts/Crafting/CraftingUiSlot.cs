@@ -58,6 +58,7 @@ public partial class CraftingUiSlot : Panel
 
 	public void Clear()
 	{
+		StoredCraftEntry = null;
 		_itemDisplay.Texture = null;
 		_itemDisplay.Visible = false;
 		_quantityLabel.Visible = false;

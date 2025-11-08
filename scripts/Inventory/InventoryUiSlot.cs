@@ -64,6 +64,7 @@ public partial class InventoryUiSlot : Panel
 
 	public void Clear()
 	{
+		StoredInvEntry = null;
 		_itemDisplay.Texture = null;
 		_itemDisplay.Visible = false;
 		_quantityLabel.Visible = false;
@@ -121,9 +122,12 @@ public partial class InventoryUiSlot : Panel
 			if (slot > 15 && slot < 20){
 				_ph.AddItem(newInvEntry, qty);
 			}
+			else {
+				_pi.AddItemToPosition(newInvEntry, x, y, qty);
+			}
 			// remove from inventory and place in dropped spot?
-			_pi.AddItemToPosition(newInvEntry, x, y, qty);
 		}
+
 	}
 
 

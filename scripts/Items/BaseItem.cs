@@ -27,6 +27,7 @@ public class BaseItem {
 	public string Description;
 	public string ScenePath;
 	public Texture2D Icon;
+	public int Health;
 	public ItemType Type;
 	public float WorldScale;
 	public int MaxStackSize = 99;

@@ -26,7 +26,7 @@ public partial class DroppedItem : RigidBody2D
 			CollisionMask = 1;
 			GravityScale = 0;
 			if (zHeight <= 0) {
-				DropItemFromHeight(40f, 0f); 
+				DropItemFromHeight(25f, 0f); 
 		}	
 		
 	}

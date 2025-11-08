@@ -67,6 +67,7 @@ public partial class ResultUiSlot : Panel
 	}
 	
 	public void Clear() {
+		StoredCraftEntry = null;
 		_itemDisplay.Texture = null;
 		_itemDisplay.Visible = false;
 		_quantityLabel.Visible = false;

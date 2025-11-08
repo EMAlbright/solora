@@ -98,6 +98,7 @@ public static void LoadAllItems()
 			DisplayName = entry["DisplayName"].ToString(),
 			Description = entry["Description"].ToString(),
 			Icon = LoadIcon(entry),
+			Health = entry.ContainsKey("Health") ? (int)(float)entry["Health"] : 15,
 			WorldScale = entry.ContainsKey("WorldScale") ? (float)entry["WorldScale"] : 1.0f,
 			MaxStackSize = (int)(float)entry["MaxStackSize"],
 			Type = ItemType.Mat

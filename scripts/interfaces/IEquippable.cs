@@ -2,6 +2,6 @@ using Godot;
 using System;
 
 public interface IEquippable {
-	void OnEquip(Player player, BaseItem item);
+	void OnEquip(Player player, InventoryEntry item);
 	void OnUnequip();
 }
