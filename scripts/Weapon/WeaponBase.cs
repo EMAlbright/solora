@@ -104,7 +104,7 @@ public partial class WeaponBase : Node2D, IEquippable, IWeapon
 	}
 	
 	// equip handling
-	public void OnEquip(Player player, InventoryEntry item) {
+	public virtual void OnEquip(Player player, InventoryEntry item) {
 		WeaponData = item.Item as WeaponItem;
 		Show();
 	}

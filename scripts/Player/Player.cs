@@ -1,8 +1,11 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+
 public partial class Player : CharacterBody2D
 {
+	public Vector2 AimDirection;
 	//itlsef
 	public static Player PlayerInstance { get; private set; }
 
@@ -15,7 +18,7 @@ public partial class Player : CharacterBody2D
 	public int BaseSpeed = 75;
 	public int RunSpeed = 150;
 	public double Health = 1000;
-	public double Stamina = 100;
+	public double Stamina = 100000;
 	public float JumpPower = 200;
 	
 	private float _attackHoldTime = 0f;
@@ -241,6 +244,7 @@ public partial class Player : CharacterBody2D
 		{
 			return;
 		}
+
 		if (_inputDirection != Vector2.Zero)
 		{
 			if (isRunning)
@@ -255,6 +259,22 @@ public partial class Player : CharacterBody2D
 		else
 		{
 			PlayIdleAnimation();
+		}
+
+		if(EquippedNode is IChargeable chargeable && !_attackInProgress && !isRunning)
+		{
+			if (Input.IsActionJustPressed("PrimaryAction"))
+			{
+				chargeable.DrawWeapon(this);
+			}
+			if (Input.IsActionPressed("PrimaryAction"))
+			{
+				
+			}
+			if (Input.IsActionJustReleased("PrimaryAction"))
+			{
+				chargeable.Release(this);
+			}
 		}
 		
 		if (EquippedNode is IWeapon weapon && !_attackInProgress && !isRunning) {

@@ -5,11 +5,18 @@ using System.Linq;
 
 public partial class Inventory : Node
 {
+	public static Inventory Instance;
 	public InventoryEntry[,] _items = new InventoryEntry[4,5];
 	private const int Columns = 4;
 	private const int Rows = 5;
 
 	public string EquippedItemId { get; private set; } = null;
+
+    public override void _Ready()
+    {
+        Instance = this;
+    }
+
 
 	[Signal]
 	public delegate void InventoryChangeEventHandler();
@@ -154,9 +161,37 @@ public partial class Inventory : Node
 		return false;
 	}
 
-	
+	public bool HasItemByKey(string key)
+	{
+		for (int i = 0; i < Columns; i++)
+		{
+			for(int j = 0; j < Rows; j++)
+			{
+				if (_items[i, j] != null && _items[i, j].Key == key)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
-	public void RemoveItem(string key, int amount = 1)
+	public bool HasItem(string itemId)
+	{
+		for(int i = 0; i < Columns; i++)
+		{
+			for(int j = 0; j < Rows; j++)
+			{
+				if(_items[i, j] != null && _items[i, j].Item.ItemId == itemId)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public void RemoveItemByKey(string key, int amount = 1)
 	{
 		for (int i = 0; i < Columns; i++){
 			for (int j = 0 ; j < Rows; j++){
@@ -177,6 +212,34 @@ public partial class Inventory : Node
 						// not enough quantity to remove,
 						// dont have to worry about this for now,
 						// can only remove one at a time
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	public void RemoveItem(string itemId, int amount = 1)
+	{
+		for(int i = 0; i < Columns; i++)
+		{
+			for(int j = 0; j < Rows; j++)
+			{
+				if (_items[i, j] != null && _items[i, j].Item.ItemId == itemId)
+				{
+					if(_items[i, j].Quantity >= amount)
+					{
+						_items[i, j].Quantity -= amount;
+						if(_items[i, j].Quantity <= 0)
+						{
+							_items[i, j] = null;
+						}
+						EmitSignal(SignalName.InventoryChange);
+						return;
+					}
+					else
+					{
+						return;
 					}
 				}
 			}

@@ -126,7 +126,7 @@ public partial class MaterialBase : StaticBody2D, IEquippable, IUsable, IMineabl
 	public void PlaceItem(Player player){
 		//remove from inventory AND hotbar
 		// can only place things from hotbar (1 at a time, no need to pass in qty)
-		_pi.RemoveItem(InvEntry.Key);
+		_pi.RemoveItemByKey(InvEntry.Key);
 		_ph.RemoveItemByKey(InvEntry.Key);
 		if (player.EquippedItemId == InvEntry.Item.ItemId) {
 			player.UnequipWeapon();

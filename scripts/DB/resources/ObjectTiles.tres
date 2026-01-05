@@ -1,0 +1,25 @@
+[gd_resource type="TileSet" load_steps=3 format=3 uid="uid://sburj4cu5n0f"]
+
+[ext_resource type="Texture2D" uid="uid://cj5yxxq6jieef" path="res://art/GAMEART/environment/Trees/Model_01/Size_03.png" id="1_0c7eh"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_tofc2"]
+texture = ExtResource("1_0c7eh")
+0:0/size_in_atlas = Vector2i(3, 6)
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8.46711, 18.6276, 6.20921, 18.6276, 7.33816, 46.8513, -7.90264, 45.7224, -5.64474, 36.1263, -4.51579, 23.1434)
+0:0/0/custom_data_0 = "tree"
+0:0/0/custom_data_1 = 12.0
+0:0/0/custom_data_2 = true
+0:0/0/custom_data_3 = "dirt"
+
+[resource]
+physics_layer_0/collision_layer = 1
+custom_data_layer_0/name = "Name"
+custom_data_layer_0/type = 4
+custom_data_layer_1/name = "hardness"
+custom_data_layer_1/type = 3
+custom_data_layer_2/name = "mineable"
+custom_data_layer_2/type = 1
+custom_data_layer_3/name = "drop_item"
+custom_data_layer_3/type = 4
+sources/0 = SubResource("TileSetAtlasSource_tofc2")

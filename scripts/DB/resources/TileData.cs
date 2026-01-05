@@ -3,18 +3,21 @@ using System;
 
 public partial class TileSetData : Resource
 {
-	public int Id;
+	public Vector2I atlasCoords;
 	public string Name;
 	public bool Mineable;
 	public float Hardness;
 	public string DroppedItem;
+
+	public string Layer;
 	
-	public TileSetData(string name, int id, float hardness, bool mineable, string di){
+	public TileSetData(string name, Vector2I coords, float hardness, bool mineable, string di, string layer){
 		Name = name;
-		Id = id;
+		atlasCoords = coords;
 		Hardness = hardness;
 		Mineable = mineable;
 		DroppedItem = di;
+		Layer = layer;
 	}
 	
 }
