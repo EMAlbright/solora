@@ -20,12 +20,15 @@ public partial class Player : CharacterBody2D
 	public double Health = 1000;
 	public double Stamina = 100000;
 	public float JumpPower = 200;
+	public float HorizontalPower = 25;
 	
 	private float _attackHoldTime = 0f;
 	private float _heavyAttackThreshold = 0.5f;
 	
 	public float height = -5f;
+	public float sideHeight = -5f;
 	public float verticalVelocity = 0f;
+	public float horizontalVelocity = 0.15f;
 	public float gravity = 750f; 
 	
 	public bool isRunning = false;
@@ -144,6 +147,7 @@ public partial class Player : CharacterBody2D
 		MoveAndSlide();
 	}
 	
+	// player interactor?
 	public void SetUndergroundMode(bool isUnderground) {
 		IsUnderground = isUnderground;
 	
@@ -169,6 +173,7 @@ public partial class Player : CharacterBody2D
 		}
 	}
 	
+	// player interactor?
 	private void CheckForEntrances() {
 		if (WorldManager.IsUnderground) return;
 		Vector2I currentTile = WorldManager.WorldToTilePos(GlobalPosition);
@@ -181,6 +186,7 @@ public partial class Player : CharacterBody2D
 		}
 	}
 	
+	// player interactor?
 	private void CheckForExits() {
 		if (!WorldManager.IsUnderground) return; 
 		Vector2I currentTile = WorldManager.WorldToTilePos(GlobalPosition);
@@ -192,6 +198,7 @@ public partial class Player : CharacterBody2D
 	}
 	}
 	
+	// player interactor?
 	private void HandleUndergroundCheck() {
 		if (Input.IsActionJustPressed("Interact")) {
 			if(WorldManager.IsUnderground) {
@@ -205,10 +212,11 @@ public partial class Player : CharacterBody2D
 		}
 	}
 	
+	// player input
 	private void HandleInput()
 	{
 		_inputDirection = Vector2.Zero;
-		isRunning = Input.IsActionPressed("run") && Stamina > 0; ;
+		isRunning = Input.IsActionPressed("run") && Stamina > 0;
 		Speed = isRunning ? RunSpeed : BaseSpeed;
 
 		if (Input.IsActionPressed("ui_right"))
@@ -305,6 +313,7 @@ public partial class Player : CharacterBody2D
 		// weapon switching
 	}
 	
+	// (stats)
 	private void HandleStamina(double delta) {
 	// drain stamina if running and moving
 	if (isRunning && _inputDirection != Vector2.Zero && Stamina > 0) {
@@ -322,15 +331,18 @@ public partial class Player : CharacterBody2D
 		}
 	}
 	
+	// player movements
 	private void HandleJump() {
 		if (Input.IsActionJustPressed("jump") && IsOnFloor()) {
-			StartJump();
+		//	StartJump();
 		}
 	}
 	
+	// player movements
 	private void HandleSurfaceJump(float delta) {
 		if (Input.IsActionJustPressed("jump") && !isJumping) {
 			verticalVelocity = JumpPower;
+			horizontalVelocity = HorizontalPower;
 			isJumping = true;
 			basePosition = Position;
 		}
@@ -338,28 +350,35 @@ public partial class Player : CharacterBody2D
 		if (isJumping) {
 			verticalVelocity -= gravity * delta;
 			height += verticalVelocity * delta;
+			sideHeight += horizontalVelocity * delta;
 
 			if (height <= 0f) {
 				height = 0f;
 				verticalVelocity = 0f;
+				horizontalVelocity = 0f;
 				isJumping = false;
 			}
 
-			Position = basePosition + new Vector2(0, -height);
+			Position = basePosition + new Vector2(sideHeight, -height);
 		}
 	}
 	
+	// player movements
 	private void StartJump() {
-		isJumping = true;
-		Velocity = new Vector2(Velocity.X, -JumpPower);
+		// isJumping = true;
+		// Velocity = new Vector2(Velocity.X, -JumpPower);
 		PlayRunAnimation();
 	}
 
+	// player movement (or animation)
 	public bool GetFacingLeft() {
 		return _playerSprite.FlipH;
 	}
 	
 	// duration change later?
+
+
+	// animation controller
 	public void PlayerAnimation(string actionName, float duration = 0.45f) {
 		string dir = _direction;
 		if(_direction == "Side" && _playerSprite.FlipH) {
@@ -389,6 +408,8 @@ public partial class Player : CharacterBody2D
 	// add bool, when false starts cooldown (invulnerability period for player)
 	// llava, mob spamming where players needs time between next damage taken
 	// default, player can be hit multiple times no cooldown
+
+	// (stats)
 	public void Take_damage(int dmg, bool force = false) {
 		if((Can_take_dmg && !IsTakingDmg && PlayerAlive) || force) {
 			Health -= dmg;
@@ -411,19 +432,19 @@ public partial class Player : CharacterBody2D
 			}
 		}
 	}
-	// attack IP check
+	// attack IP check (stats)
 	private void _on_deal_attack_timer_timeout() {
 		_deal_attack_timer.Start();
 		_attackInProgress = false;
 	}
 	
-	// taking dmg check
+	// taking dmg check (stats)
 	private void _on_take_damage_cooldown_timeout() {
 		Can_take_dmg = true;
 		IsTakingDmg = false;
 	}
 	
-	// health regen
+	// health regen (stats)
 	private void _on_regen_timer_timeout() {
 		if (!PlayerAlive) return;
 		
@@ -432,7 +453,7 @@ public partial class Player : CharacterBody2D
 		_healthBar.Value = Health;
 	}
 	
-	// stamina regen
+	// stamina regen (stats)
 	private void _on_regen_stamina_timer_timeout() {
 		if (!PlayerAlive) return;
 		
@@ -441,6 +462,7 @@ public partial class Player : CharacterBody2D
 		_staminaBar.Value = Stamina;
 	}
 	
+	// equipment
 	public void EquipFromHotbar(InventoryEntry item) {
 		if (item == null || EquippedItemId == item.Item.ItemId) {
 			return;
@@ -454,12 +476,14 @@ public partial class Player : CharacterBody2D
 		EquippedItemId = item.Item.ItemId;	
 	}
 	
+	// equipment
 	public void UnequipWeapon() {
 		EquipmentManager.UnequipItem(EquippedNode);
 		EquippedNode = null;
 		EquippedItemId = "";
 	}	
 	
+	// animation
 	private void PlayWalkAnimation() {
 		if(EquippedNode != null) {
 			EquippedNode.Show();
@@ -467,6 +491,7 @@ public partial class Player : CharacterBody2D
 		_animationPlayer.Play($"{_direction}Walk");
 	}
 	
+	// animation
 	private void PlayRunAnimation() {
 		if(EquippedNode != null) {
 			EquippedNode.Hide();
@@ -474,6 +499,7 @@ public partial class Player : CharacterBody2D
 		_animationPlayer.Play($"{_direction}Run");
 	}
 	
+	// animation
 	private void PlayIdleAnimation() {
 		if(EquippedNode != null) {
 			EquippedNode.Show();

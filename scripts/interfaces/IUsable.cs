@@ -2,6 +2,6 @@ using Godot;
 using System;
 
 public interface IUsable {
-	void Use(Player player);
+	void Use(UseContext context);
 	// seconday action?
 }

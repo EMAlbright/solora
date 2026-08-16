@@ -1,10 +1,9 @@
 
 using System.Data;
 
-public interface IChargeable: IWeapon
+public interface IChargeable
 {
-    void DrawWeapon(Player player);
-    void Charge(Player player, float delta);
-    void Release(Player player);
-
+    void BeginCharge(AttackContext context);
+    void Charge(AttackContext context, float delta);
+    void Release(AttackContext context);
 }

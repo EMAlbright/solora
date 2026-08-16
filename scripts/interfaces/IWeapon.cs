@@ -2,6 +2,9 @@ using Godot;
 using System;
 
 public interface IWeapon {
-	void LightAttack(Player player);
-	void HeavyAttack(Player player);
+	float LightAttackDuraction {get;}
+	float HeavyAttackDuration {get;}
+	float HeavyAttackStaminaCost {get;}
+	void LightAttack(AttackContext context);
+	void HeavyAttack(AttackContext context);
 }
