@@ -9,40 +9,66 @@ public partial class ToolBase : Node2D, IEquippable, IUsable
 	private Player _player;
 	
 	public override void _Ready() {
-		_sprite = GetNode<Sprite2D>("ToolSprite");
-		var area = GetNode<Area2D>("tool_area2d");
-		area.AreaEntered += OnAreaEntered;
+		Area2D _toolArea = GetNode<Area2D>("tool_area2d");
+		_toolArea.AreaEntered += OnAreaEntered;
 	}
 	
-	public virtual void Use(Player player) {
-		GD.Print("Override tool base animation");
+	public virtual void Use(UseContext context) {
+		if(ToolData == null || _isUsingTool)
+		{
+			return;
+		}
+
 		_isUsingTool = true;
 		
+		UseOnTile(context);
 		
-		// get tile pos from game manager
-		Vector2I tilePos = WorldManager.WorldToTilePos(player.GlobalPosition);
-		WorldManager.Mining.MineTile(tilePos + player.FacingDirection, ToolData);
-		
-		GetTree().CreateTimer(ToolData.AttackDuration).Timeout += () => {
-			_isUsingTool = false;
-		};
+		FinishUseAfter(ToolData.AttackDuration);
+	}
+
+	protected void UseOnTile(UseContext context)
+	{
+		Vector2 targetWorldPosition = context.Origin + context.Direction * 16f;
+		Vector2I tile = WorldManager.WorldToTilePos(targetWorldPosition);
+		WorldManager.Mining.MineTile(tile, ToolData);
+
+	}
+
+	private async void FinishUseAfter(float duration)
+	{
+		await ToSignal(
+			GetTree().CreateTimer(duration),
+			SceneTreeTimer.SignalName.Timeout
+		);
+		_isUsingTool = false;
+
 	}
 	
 	
-	public void OnEquip(Player player, InventoryEntry item) {
-		_player = player;
-		ToolData = item.Item as ToolItem;
+	public virtual void OnEquip(EquipmentContext context) {
+		Owner = context.Owner;
+
+		ToolData = context.Entry.Item as ToolItem;
+
+		if (ToolData == null)
+		{
+			GD.PushError("Non ToolItem equipped");
+		}
 		Show();
 	}
 	
-	public void OnUnequip() {
+	public virtual void OnUnequip() {
+		_isUsingTool = false;
 		Hide();
+
+		Owner = null;
+		ToolData = null;
 	}
 	
 	// check if area the Tools hitbox (area2d) has entered is a mineable area
 	private void OnAreaEntered(Area2D area) {
 		// dont take damage from just walking around
-		if (!_isUsingTool) {
+		if (!_isUsingTool || ToolData == null) {
 			return;
 		}
 		

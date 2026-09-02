@@ -9,6 +9,9 @@ public partial class Player : CharacterBody2D
 	//itlsef
 	public static Player PlayerInstance { get; private set; }
 
+	private PlayerMovement _playerMovement;
+	public PlayerMovement Movement => _playerMovement;
+
 	// current equipped node
 	public Node2D EquippedNode {get; private set;}
 	public string EquippedItemId {get; private set;}
@@ -80,6 +83,9 @@ public partial class Player : CharacterBody2D
 		CraftingDatabase.LoadRecipes();
 
 		PlayerInstance = this;
+
+		Node2D visualRoot = GetNode<Node2D>("VisualRoot");
+		_playerMovement = new PlayerMovement(this, visualRoot);
 
 		// initialize the world maanger to give it tile map
 		if (!WorldManager.IsInitialized)

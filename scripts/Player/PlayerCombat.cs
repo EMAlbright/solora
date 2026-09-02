@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using Godot;
 
 public partial class PlayerCombat : Node
@@ -103,7 +102,7 @@ public partial class PlayerCombat : Node
         State = CombatState.LightAttack;
         weapon.LightAttack(context);
         StartAttackTimer(
-            weapon.LightAttackDuraction
+            weapon.LightAttackDuration
         );
     }
 
