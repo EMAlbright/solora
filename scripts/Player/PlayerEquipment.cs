@@ -14,7 +14,6 @@ public partial class PlayerEquipment: Node
 
     private Node2D _pivot;
     private Node2D _owner;
-    private EquipmentContext _context;
 
     public override void _Ready()
     {
@@ -47,7 +46,7 @@ public partial class PlayerEquipment: Node
         EquippedNode = instance;
         EquippedEntry = entry;
 
-        _context = new(
+        EquipmentContext context = new(
             Owner: _owner,
             Entry: entry
         );
@@ -55,7 +54,7 @@ public partial class PlayerEquipment: Node
         if(instance is IEquippable equippable)
         {
             equippable.OnEquip(
-                _context
+                context
             );
         }
 

@@ -104,7 +104,7 @@ public static class WorldManager
 	}
 	
 		// Transition methods
-	public static void SurfaceToUnderground(Vector2I entrancePos, Player player) {
+	public static void SurfaceToUnderground(Vector2I entrancePos, Node2D owner) {
 		if (!_entrances.Contains(entrancePos)) 
 		{
 			GD.Print($"No entrance found at {entrancePos}");
@@ -118,21 +118,27 @@ public static class WorldManager
 		Vector2I undergroundTilePos = new Vector2I(entrancePos.X, 0);
 		Vector2 undergroundWorldPos = _baseUnderground.MapToLocal(undergroundTilePos);
 		AddExit(undergroundTilePos);
-		player.GlobalPosition = undergroundWorldPos;
-		player.SetUndergroundMode(true);
+		owner.GlobalPosition = undergroundWorldPos;
+
+		if(owner is Player player)
+		{
+			player.SetUndergroundMode(true);
+		}
 		
 		GD.Print($"Player transitioned to underground at {undergroundWorldPos}");
 	}
 	
-	public static void UndergroundToSurface(Vector2I exitPos, Player player) {
+	public static void UndergroundToSurface(Vector2I exitPos, Node2D owner) {
 		_isUnderground = false;
 		ShowSurface();
 		
 		// Position player at corresponding surface position
 		Vector2 surfaceWorldPos = _groundTilemap.MapToLocal(exitPos);
-		player.GlobalPosition = surfaceWorldPos;
-		player.SetUndergroundMode(false);
-		
+		owner.GlobalPosition = surfaceWorldPos;
+		if(owner is Player player)
+		{
+			player.SetUndergroundMode(true);
+		}		
 		GD.Print($"Player returned to surface at {surfaceWorldPos}");
 	}
 	
