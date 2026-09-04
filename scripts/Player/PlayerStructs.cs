@@ -32,5 +32,6 @@ public readonly record struct UseContext(
 );
 
 public readonly record struct InteractionContext(
-    Node2D Owner
+    Node2D Owner,
+    Vector2 Direction
 );

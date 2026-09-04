@@ -2,20 +2,21 @@ using Godot;
 
 public partial class PlayerCombat : Node
 {
-    public enum CombatState
+    public enum ActionState
     {
         Idle,
         LightAttack,
         HeavyAttack,
-        Charging
+        Charging,
+        Using
     }
 
     private const float HeavyAttackThreshold = 0.5f;
 
-    public CombatState State {get; private set;} = CombatState.Idle;
+    public ActionState State {get; private set;} = ActionState.Idle;
 
-    public bool IsAttacking => State == CombatState.LightAttack || State == CombatState.HeavyAttack;
-    public bool IsCharging => State == CombatState.Charging;
+    public bool IsAttacking => State == ActionState.LightAttack || State == ActionState.HeavyAttack;
+    public bool IsCharging => State == ActionState.Charging;
     public Vector2 AimDirection {get; private set;} = Vector2.Down;
     private float _attackHoldTime;
 
@@ -90,7 +91,7 @@ public partial class PlayerCombat : Node
     }
     private void TryHeavyAttack(IWeapon weapon, AttackContext context)
     {
-        State = CombatState.HeavyAttack;
+        State = ActionState.HeavyAttack;
         weapon.HeavyAttack(context);
         StartAttackTimer(
             weapon.HeavyAttackDuration
@@ -99,7 +100,7 @@ public partial class PlayerCombat : Node
 
     private void TryLightAttack(IWeapon weapon, AttackContext context)
     {
-        State = CombatState.LightAttack;
+        State = ActionState.LightAttack;
         weapon.LightAttack(context);
         StartAttackTimer(
             weapon.LightAttackDuration
@@ -112,7 +113,7 @@ public partial class PlayerCombat : Node
 
         if (input.PrimaryPressed)
         {
-            State = CombatState.Charging;
+            State = ActionState.Charging;
             chargeable.BeginCharge(context);
         }
         if (input.PrimaryHeld && IsCharging)
@@ -122,7 +123,7 @@ public partial class PlayerCombat : Node
         if(input.PrimaryReleased && IsCharging)
         {
             chargeable.Release(context);
-            State = CombatState.Idle;
+            State = ActionState.Idle;
         }
     }
 
@@ -163,6 +164,6 @@ public partial class PlayerCombat : Node
             GetTree().CreateTimer(duration), 
             SceneTreeTimer.SignalName.Timeout
         );
-        State = CombatState.Idle;
+        State = ActionState.Idle;
     }
 }

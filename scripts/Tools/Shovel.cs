@@ -3,8 +3,9 @@ using System;
 
 public partial class Shovel : ToolBase
 {
-	public override void Use(Player player) {
-		base.Use(player);
-		player.PlayerAnimation("Shovel", ToolData.AttackDuration);
+	public override UseAnimationType UseAnimation => UseAnimationType.Shovel;
+
+	public override void Use(UseContext context	) {
+		base.Use(context);
 	}
 }

@@ -3,6 +3,13 @@ using System;
 
 public partial class ToolBase : Node2D, IEquippable, IUsable
 {
+	public enum UseAnimationType {
+    None,
+    Shovel,
+    Mine,
+    Chop
+	}
+	public virtual UseAnimationType UseAnimation => UseAnimationType.None;
 	public ToolItem ToolData;
 	private Sprite2D _sprite;
 	private bool _isUsingTool = false;
