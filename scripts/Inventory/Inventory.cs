@@ -1,265 +1,235 @@
 using Godot;
+using GodotPlugins.Game;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 public partial class Inventory : Node
 {
-	public static Inventory Instance;
-	public InventoryEntry[,] _items = new InventoryEntry[4,5];
-	private const int Columns = 4;
-	private const int Rows = 5;
-
-	public string EquippedItemId { get; private set; } = null;
-
-    public override void _Ready()
-    {
-        Instance = this;
-    }
-
+	public const int MainInventorySlots = 16;
+	public const int HotBarSlots = 4;
+	public const int TotalSlots = 20;
+	private readonly InventoryEntry[] _slots = new InventoryEntry[TotalSlots];
 
 	[Signal]
 	public delegate void InventoryChangeEventHandler();
 
 	public IEnumerable<InventoryEntry> GetAllItems()
 	{
-		for (int x = 0; x < Columns; x++) {
-			for (int y = 0; y < Rows; y++) {
-				if (_items[x, y] != null) {
-					yield return _items[x, y];
-				}
+		foreach(InventoryEntry entry in _slots)
+		{
+			if(entry != null)
+			{
+				yield return entry;
 			}
 		}
-	}
-
-	public InventoryEntry[,] GetInventoryGrid() 
-	{
-		return _items;  
-	}
-
-	public (int x, int y) FindItem(string itemId) {
-		for (int x = 0; x < Columns; x++){
-			for (int y = 0; y < Rows; y++) {
-				if (_items[x,y] != null && _items[x,y].Item.ItemId == itemId){
-					return (x, y);
-				}
-			}
-		}
-		return (-1, -1);
-	}
-
-	public (int x, int y) FindItemByKey(string key) {
-		for (int x  = 0; x < Columns; x++){
-			for (int y = 0; y < Rows; y++){
-				if (_items[x,y] != null && _items[x,y].Key == key){
-					return (x, y);
-				}
-			}
-		}
-		return (-1, -1);
-	}
-
-	public (int x, int y) FindEmptySlot() {
-		for (int x  = 0; x < Columns; x++){
-			for (int y = 0; y < Rows; y++){
-				if (_items[x,y] == null){
-					return (x, y);
-				}
-			}
-		}
-		return (-1, -1);
-	}
-
-	private (int x, int y) IndexToCoords(int index) {
-		return (index % Columns, index / Columns);
-	}
-
-	public int CoordsToIndex(int x, int y) {
-		// map to a slot index
-		// [0 0 0]
-		// [0 0 0]
-		// -------
-		// [0 1 2]
-		// [3 4 5]
-		return y * Columns + x;
-	}
-
-	// get entry at certain point (coords)
-	public InventoryEntry GetItemAt(int x, int y) {
-		if (x < 0 || x >= Columns || y < 0 || y >= Rows){
-			return null;
-		}
-		return _items[x,y];
 	}
 
 	// get entry at certain slot (index)
 	public InventoryEntry GetItemAtIndex(int index) {
-		var (x, y) = IndexToCoords(index);
-		return GetItemAt(x, y);
-	}
-
-	public void AddItem(BaseItem item, int amount = 1)
-	{
-		if (item.IsStackable)
+		if (!IsValidSlot(index))
 		{
-			// try to stack
-			var (x, y) = FindItem(item.ItemId);
-			if (x != -1){
-				GD.Print("Inventory received " + item.ItemId);
-				_items[x, y].Quantity += amount;
-				EmitSignal(SignalName.InventoryChange);
-				return;
-			}
+			return null;
 		}
-
-		// not stackable, loop through to find empty slot
-		for (int i = 0; i < amount; i++){
-			var (emptyX, emptyY) = FindEmptySlot();
-			if (emptyX != -1){
-				// key is item id, if non stackable unique id
-				string key = item.IsStackable ? item.ItemId : $"{item.ItemId}_{Guid.NewGuid()}";
-				_items[emptyX, emptyY] = new InventoryEntry(item, item.IsStackable ? amount : 1, key);
-				GD.Print("Inventory received " + item.ItemId);
-
-				// stackable, jsut one entry
-				if(item.IsStackable){
-					break;
-				}
-			}
-			// full inventory
-			else{
-				GD.Print("Inventory full");
-				break;
-			}
-		}
-		EmitSignal(SignalName.InventoryChange);
+		return _slots[index];
 	}
 
-	// add item to certain slot
-	public bool AddItemToSlot(BaseItem item, int slotIndex, int amount = 1){
-		var (x, y) = IndexToCoords(slotIndex);
-		return AddItemToPosition(item, x, y, amount);
-	}
-
-	public bool AddItemToPosition(BaseItem item, int x, int y, int amount = 1){
-		if (x < 0 || x >= Columns || y < 0 || y >= Rows){
-			return false;
-		}
-		
-		// item can be added
-		if (_items[x,y] == null) {
-			string key = item.IsStackable ? item.ItemId : $"{item.ItemId}_{Guid.NewGuid()}";
-			_items[x,y] = new InventoryEntry(item, amount, key);
-			EmitSignal(SignalName.InventoryChange);
-			return true;
-		}
-		else if (item.ItemId == _items[x,y].Item.ItemId && item.IsStackable){
-			_items[x,y].Quantity += amount;
-			EmitSignal(SignalName.InventoryChange);
-			return true;
-		}
-		return false;
-	}
-
-	public bool HasItemByKey(string key)
+	public InventoryEntry GetItemByKey(string key)
 	{
-		for (int i = 0; i < Columns; i++)
+		int index = FindItemByKey(key);
+		if (index == -1)
 		{
-			for(int j = 0; j < Rows; j++)
-			{
-				if (_items[i, j] != null && _items[i, j].Key == key)
-				{
-					return true;
-				}
-			}
+			return null;
 		}
-		return false;
-	}
-
-	public bool HasItem(string itemId)
-	{
-		for(int i = 0; i < Columns; i++)
-		{
-			for(int j = 0; j < Rows; j++)
-			{
-				if(_items[i, j] != null && _items[i, j].Item.ItemId == itemId)
-				{
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	public void RemoveItemByKey(string key, int amount = 1)
-	{
-		for (int i = 0; i < Columns; i++){
-			for (int j = 0 ; j < Rows; j++){
-				
-				if (_items[i, j] != null && _items[i,j].Key == key){
-					GD.Print(key);
-					if(_items[i,j].Quantity >= amount){
-						_items[i, j].Quantity -= amount;
-
-						if(_items[i,j].Quantity <= 0){
-							_items[i,j] = null;
-						}
-
-						EmitSignal(SignalName.InventoryChange);
-						return;
-					}
-					else{
-						// not enough quantity to remove,
-						// dont have to worry about this for now,
-						// can only remove one at a time
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	public void RemoveItem(string itemId, int amount = 1)
-	{
-		for(int i = 0; i < Columns; i++)
-		{
-			for(int j = 0; j < Rows; j++)
-			{
-				if (_items[i, j] != null && _items[i, j].Item.ItemId == itemId)
-				{
-					if(_items[i, j].Quantity >= amount)
-					{
-						_items[i, j].Quantity -= amount;
-						if(_items[i, j].Quantity <= 0)
-						{
-							_items[i, j] = null;
-						}
-						EmitSignal(SignalName.InventoryChange);
-						return;
-					}
-					else
-					{
-						return;
-					}
-				}
-			}
-		}
+		return _slots[index];
 	}
 	
-	public void AddItemWithKey(BaseItem item, int amount, string key)
-{
-	var (x, y) = FindItemByKey(key);
-	if (x != -1)
-	{
-		_items[x, y].Quantity += amount;
-	}
-	else
-	{
-		var (eX, eY) = FindEmptySlot();
-		if (eX != -1){
-			_items[x, y] = new InventoryEntry(item, amount, key);
+
+	public int FindItem(string itemId) {
+		for (int i = 0; i < TotalSlots; i++){
+			if(_slots[i]?.Item.ItemId == itemId)
+			{
+				return i;
+			}
 		}
+		return -1;
 	}
-	EmitSignal(SignalName.InventoryChange);
-}
+
+	public int FindItemByKey(string key) {
+		for (int i = 0; i < TotalSlots; i++){
+			if(_slots[i]?.Key == key)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	public int FindEmptySlot() {
+		for (int i  = 0; i < MainInventorySlots; i++){
+			if (_slots[i] == null)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+    public bool AddItem(BaseItem item, int amount = 1)
+    {
+        if (item == null || amount <= 0)
+            return false;
+
+        if (item.IsStackable)
+        {
+            int existingIndex = FindItem(item.ItemId);
+
+            if (existingIndex != -1)
+            {
+                _slots[existingIndex].Quantity += amount;
+                EmitSignal(SignalName.InventoryChange);
+                return true;
+            }
+
+            int emptyIndex = FindEmptySlot();
+
+            if (emptyIndex == -1)
+                return false;
+
+            _slots[emptyIndex] = new InventoryEntry(
+                item,
+                amount,
+                item.ItemId
+            );
+
+            EmitSignal(SignalName.InventoryChange);
+            return true;
+        }
+
+        for (int i = 0; i < amount; i++)
+        {
+            int emptyIndex = FindEmptySlot();
+
+            if (emptyIndex == -1)
+                return false;
+
+            string key = $"{item.ItemId}_{Guid.NewGuid()}";
+
+            _slots[emptyIndex] = new InventoryEntry(
+                item,
+                1,
+                key
+            );
+        }
+
+        EmitSignal(SignalName.InventoryChange);
+        return true;
+    }
+
+	public bool MoveItem(int fromIndex, int toIndex)
+	{
+		if(!IsValidSlot(fromIndex) || !IsValidSlot(toIndex))
+		{
+			return false;
+		}
+		if(fromIndex == toIndex)
+		{
+			return false;
+		}
+
+		InventoryEntry from = _slots[fromIndex];
+
+		if(from == null)
+		{
+			return false;
+		}
+
+		InventoryEntry to = _slots[toIndex];
+
+		// set new slot for item entry
+		if(to == null)
+		{
+			_slots[toIndex] = from;
+			_slots[fromIndex] = null;
+			
+			EmitSignal(SignalName.InventoryChange);
+			return true;
+		}
+
+		// stack same item
+		if(from.Item.IsStackable && to.Item.ItemId == from.Item.ItemId)
+		{
+			to.Quantity += from.Quantity;
+			_slots[fromIndex] = null;
+			
+			EmitSignal(SignalName.InventoryChange);
+			return true;
+		}
+
+		// swap both entries
+		_slots[toIndex] = from;
+		_slots[fromIndex] = to;
+
+		EmitSignal(SignalName.InventoryChange);
+		return true;
+	}
+
+	public bool RemoveItemByKey(string key, int amount = 1)
+	{
+        int index = FindItemByKey(key);
+
+        if (index == -1)
+		{
+			return false;
+		}
+
+        InventoryEntry entry = _slots[index];
+
+        if (entry.Quantity < amount)
+		{
+			return false;
+		}
+
+        entry.Quantity -= amount;
+
+        if (entry.Quantity <= 0)
+		{
+            _slots[index] = null;
+		}
+
+        EmitSignal(SignalName.InventoryChange);
+        return true;
+	}
+
+	public bool RemoveItem(string itemId, int amount = 1)
+	{
+		int index = FindItem(itemId);
+
+		if(index == -1)
+		{
+			return false;
+		}
+
+		InventoryEntry entry = _slots[index];
+		
+		if (entry.Quantity < amount)
+		{
+			return false;
+		}
+
+        entry.Quantity -= amount;
+
+        if (entry.Quantity <= 0)
+		{
+            _slots[index] = null;
+		}
+
+        EmitSignal(SignalName.InventoryChange);
+        return true;
+	}
+	
+	private bool IsValidSlot(int index)
+	{
+		return index >= 0 && index < TotalSlots;
+	}
 }
