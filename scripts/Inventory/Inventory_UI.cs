@@ -6,33 +6,30 @@ public partial class Inventory_UI : Control
 	// array of slots
 	private InventoryUiSlot[] _slots;
 	// player inv class
-	private Inventory _playerInventory;
+	private Inventory _inventory;
 	
 	public override void _Ready() {
+
 		Visible = false;
 		
-		var grid = GetNode<GridContainer>("NinePatchRect/SlotsGrid");
+		GridContainer grid = GetNode<GridContainer>("NinePatchRect/SlotsGrid");
+
 		_slots = new InventoryUiSlot[grid.GetChildCount()];
-		for (int i = 0; i < grid.GetChildCount(); i++)
+
+		for (int i = 0; i < _slots.Length; i++)
 		{
-			GD.Print("Looping (inventory)");
-			_slots[i] = grid.GetChild(i) as InventoryUiSlot;
-			if (_slots[i] != null)
-			{
-				_slots[i].InventorySlotIndex = i;
-			}
+			_slots[i] = grid.GetChild<InventoryUiSlot>(i);
+
+			_slots[i].InventorySlotIndex = i;
+
 		}
 		
 		// get inventory node
-		_playerInventory = GetParent().GetNode<Inventory>("Inventory");
-		if (_playerInventory == null) {
-			GD.PrintErr("Inventory node not found!");
-		} else {
-			GD.Print("Inventory node successfully referenced.");
-		}
+		_inventory = GetParent().GetNode<Inventory>("Inventory");
 		
-		// set signal to update UI from Inventory logic node
-		_playerInventory.InventoryChange += Update;
+		_inventory.InventoryChange += UpdateItems;
+		
+		UpdateItems();
 	}
 	
 	public override void _Process(double delta) {
@@ -41,29 +38,17 @@ public partial class Inventory_UI : Control
 		}
 	}
 
-	public void Update()
+	public void UpdateItems()
 	{
-		int slotIndex = 0;
-		var invGrid = _playerInventory.GetInventoryGrid();
+		for(int i = 0; i <_slots.Length; i++)
+		{
+			InventoryEntry entry = _inventory.GetItemAtIndex(i);
 
-		for(int i = 0; i < invGrid.GetLength(1); i++){
-			for(int j = 0; j < invGrid.GetLength(0); j++){
-				// if slot reachable
-				if(slotIndex < _slots.Length){
-
-					var entry = invGrid[j,i];
-					// set new item to null (empty) slot
-					if(entry != null){
-						_slots[slotIndex].SetItem(entry);
-					}
-					//TODO: CURRENTLY IF YOU PLACE ITEM IN SLOT OCCUPIED
-					//THEN ITEM IS JUST CLEARED (not from inv, but visually)
-					//This should probably just have nothing happen
-					else {
-						_slots[slotIndex].Clear();
-					}
-				}
-				slotIndex++;
+			if(entry != null)
+			{
+				_slots[i].SetItem(entry);
+			} else {
+				_slots[i].Clear();
 			}
 		}
 	}
