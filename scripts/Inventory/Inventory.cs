@@ -3,6 +3,7 @@ using GodotPlugins.Game;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 
 public partial class Inventory : Node
 {
@@ -126,6 +127,43 @@ public partial class Inventory : Node
         return true;
     }
 
+	public bool TryAddItemAt(int index, BaseItem item, int amount = 1)
+	{
+
+		if (!IsValidSlot(index) || item == null || amount <= 0){
+			return false;
+		}
+
+		InventoryEntry entry = _slots[index];
+
+		if (entry == null)
+		{
+			if (!item.IsStackable && amount > 1)
+			{
+				return false;
+			}
+			
+			string key = item.IsStackable ? item.ItemId : $"{item.ItemId}_{Guid.NewGuid()}";
+        	_slots[index] = new InventoryEntry(
+            	item,
+            	amount,
+            	key
+        	);
+			EmitSignal(SignalName.InventoryChange);
+			return true;
+		}
+
+        if (item.IsStackable && (entry.Item.ItemId == item.ItemId))
+        {
+            entry.Quantity += amount;
+            EmitSignal(SignalName.InventoryChange);
+            return true;
+        }
+
+        return false;
+
+    }
+	
 	public bool MoveItem(int fromIndex, int toIndex)
 	{
 		if(!IsValidSlot(fromIndex) || !IsValidSlot(toIndex))

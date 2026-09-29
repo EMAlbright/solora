@@ -5,8 +5,10 @@ using System.Collections.Generic;
 public partial class Crafting : Node
 {
 	private Inventory _inventory;
-	private CraftingEntry _entry;
+	private Recipe _currentRecipe;
 	private readonly CraftingEntry[,] _slots = new CraftingEntry[2,2];
+	public CraftingEntry CurrentResult { get; private set; }
+
 	
 	[Signal]
 	public delegate void CraftingChangeEventHandler();
@@ -75,18 +77,45 @@ public partial class Crafting : Node
 		return true;
 	}
 
-	// Remove an item from crafting grid (back to inventory)
-	public bool RemoveItem(int x, int y)
+	public bool CraftResult(int slotIndex)
 	{
+		if (CurrentResult == null)
+		{
+			return false;
+		}
+
+		if(!_inventory.TryAddItemAt(slotIndex, CurrentResult.Item, CurrentResult.Quantity))
+		{
+			return false;
+		}
+
+		// Remove ingredients needed
+		ConsumeIngredients();
+
+		// Re evaluate if current crafting grid state yields a item
+		EvaluateRecipe();
+
+		EmitSignal(SignalName.CraftingChange);
+		return true;
+	}
+
+	// Remove an item from crafting grid (back to inventory)
+	public bool RemoveItem(int x, int y, int slotIndex)
+	{
+		if (!IsValidSlot(x, y))
+		{
+			return false;
+		}
+
 		CraftingEntry entry = GetItemAt(x, y);
 
 		if (entry == null) return false;
 
-		// TODO: Add so removing item from crafting grid doesn't auto go back to inventory (may just want to drop)
-		if(!_inventory.AddItem(entry.Item, entry.Quantity))
+		if(!_inventory.TryAddItemAt(slotIndex, entry.Item, entry.Quantity))
 		{
 			return false;
 		}
+
 		_slots[x, y] = null;
 
 		// Re evaluate if current crafting grid state yields a item
@@ -95,63 +124,75 @@ public partial class Crafting : Node
 		EmitSignal(SignalName.CraftingChange);
 		return true;
 	}
-	
-	public void RemoveAllCraftingItems(){
-		for (int x = 0; x < 2; x++)
-		{
-			for (int y = 0; y < 2; y++)
-			{
-				_grid[x, y] = null;
-			}
-		}
-		EmitSignal(SignalName.CraftingChange);
-	}
 
-	// Clear grid (return items back to inventory)
-	public void ClearGrid()
-	{
-		for (int x = 0; x < 2; x++)
+	// When not a specific slot
+	public bool RemoveItem(int x, int y) {
+    	if (!IsValidSlot(x, y))
+        	return false;
+
+    	CraftingEntry entry = _slots[x, y];
+
+    	if (entry == null)
+        	return false;
+
+   		if (!_inventory.AddItem(entry.Item, entry.Quantity))
+        	return false;
+
+    	_slots[x, y] = null;
+
+    	EvaluateRecipe();
+
+    	EmitSignal(SignalName.CraftingChange);
+
+    	return true;
+	}
+	
+	public void ClearGrid(){
+		for (int x = 0; x < _slots.GetLength(0); x++)
 		{
-			for (int y = 0; y < 2; y++)
+			for (int y = 0; y < _slots.GetLength(1); y++)
 			{
 				RemoveItem(x, y);
 			}
 		}
-		EmitSignal(SignalName.CraftingChange);
 	}
 
-	// This will eventually check recipe patterns
-	public bool TryCraft(int newAmount)
-	{
-	// compare `_grid` against known recipe layouts.
-	// "itemId": quantity
-		//TODO: Maybe dont create a dict everytime func is called;; 
-		Dictionary<string, int> currItems = new Dictionary<string, int>();
-		for (int x = 0; x < _grid.GetLength(0); x++) {
-			for (int y = 0; y < _grid.GetLength(1); y++) {
-				if (_grid[x, y] != null) {
-					if(currItems.ContainsKey(_grid[x,y].Item.ItemId)){
-						currItems[_grid[x,y].Item.ItemId] += newAmount;
-					}
-					else{
-						currItems.Add(_grid[x,y].Item.ItemId, _grid[x,y].Quantity);
-					}
-					GD.Print($"Added {_grid[x,y].Item.ItemId} to crafting list");
-				}
+	public void EvaluateRecipe() {
+
+		Dictionary<string, int> recipe = new Dictionary<string, int>();
+
+		foreach(CraftingEntry entry in GetAllItems())
+		{
+			string id = entry.Item.ItemId;
+			if (recipe.ContainsKey(id))
+			{
+				recipe[id] += entry.Quantity;
+			}
+			else
+			{
+				recipe[id] = entry.Quantity;
 			}
 		}
-		Recipe itemCreated = CraftingDatabase.FindMatch(currItems);
-		if(itemCreated == null){
+		
+		_currentRecipe = CraftingDatabase.FindMatch(recipe);
+
+		if(_currentRecipe == null){
+			CurrentResult = null;
 			GD.Print("Null item match returned");
-			return false;
+			return;
 		}
-		int quantity = itemCreated.Output.Count;
-		BaseItem item = ItemDatabase.GetItem(itemCreated.Output.ItemId);
-		string key = item.IsStackable ? item.ItemId : $"{item.ItemId}_{Guid.NewGuid()}";
+
+		BaseItem resultItem = ItemDatabase.GetItem(_currentRecipe.Output.ItemId);
+
+		if(resultItem == null){
+			CurrentResult = null;
+			GD.Print("Null item match returned");
+		}
+
+		// unique tools/weapons get specific key, otherwise stackable item gets item id as key
+		string key = resultItem.IsStackable ? resultItem.ItemId : $"{resultItem.ItemId}_{Guid.NewGuid()}";
 		
-		craftableItem = new CraftingEntry(item, quantity, key);
+		CurrentResult = new CraftingEntry(resultItem, recipeOut.Output.Count, key);
 		
-		// load recipes when trying to craft only?
-		return true;
 	}
 }
