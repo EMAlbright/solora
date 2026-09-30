@@ -195,4 +195,9 @@ public partial class Crafting : Node
 		CurrentResult = new CraftingEntry(resultItem, recipeOut.Output.Count, key);
 		
 	}
+
+	private void ConsumeIngredients()
+	{
+		_currentRecipe
+	}
 }
